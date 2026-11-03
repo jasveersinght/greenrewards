@@ -1,0 +1,571 @@
+// Green Rewards — SQLite-compatible schema
+// Enums are String fields; BigInt replaced with Int; arrays stored as String (JSON).
+// All monetary values in integer paise (Int). Never use Float for money.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ─────────────────────────────────────────────
+// Auth & Identity
+// ─────────────────────────────────────────────
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  displayName String?
+  city        String?
+  locality    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roleGrants       RoleGrant[]
+  otpAttempts      OtpAttempt[]
+  claims           Claim[]
+  stampCards       StampCard[]
+  leakReports      LeakReport[]
+  reservations     Reservation[]
+  tickets          TicketSubmission[]
+  devices          Device[]
+  householdMembers HouseholdMember[]
+  ledgerEntries    LedgerEntry[]
+  vouchers         Voucher[]
+  redemptions      Redemption[]
+  notifications    Notification[]
+  reminders        Reminder[]
+  deliveries       DeliveryMission[]
+  reviews          Review[]            @relation("reviewer")
+  repairClaims     RepairClaim[]
+  auditLogs        AuditLog[]          @relation("auditActor")
+}
+
+model OtpAttempt {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model RoleGrant {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String    // USER | MERCHANT | REVIEWER | MAINTENANCE | FOOD_PARTNER | SPONSOR | ADMIN
+  partnerId String?
+  partner   Partner?  @relation(fields: [partnerId], references: [id])
+  grantedBy String
+  grantedAt DateTime  @default(now())
+  revokedAt DateTime?
+
+  @@unique([userId, role, partnerId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────
+// Partners & Locations
+// ─────────────────────────────────────────────
+
+model Partner {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // SHOP | RESTAURANT | FOOD_PARTNER | SPONSOR | AUTHORITY | PLUMBER | OPERATOR
+  approved    Boolean  @default(false)
+  isSimulated Boolean  @default(false)
+  locationId  String?
+  location    Location? @relation(fields: [locationId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roleGrants   RoleGrant[]
+  campaigns    Campaign[]      @relation("funder")
+  offers       Offer[]
+  foodListings FoodListing[]
+  parcels      DonationParcel[]
+  milestones   MerchantMilestone[]
+}
+
+model Location {
+  id        String   @id @default(cuid())
+  lat       Float
+  lng       Float
+  address   String?
+  isPublic  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  partners Partner[]
+}
+
+// ─────────────────────────────────────────────
+// Campaigns & Budgets
+// ─────────────────────────────────────────────
+
+model Campaign {
+  id              String   @id @default(cuid())
+  name            String
+  section         String   // REUSE | LEAK | FOOD | ELECTRICITY | WATER | COMMUTE
+  funderPartnerId String
+  funder          Partner  @relation("funder", fields: [funderPartnerId], references: [id])
+  status          String   @default("DRAFT") // DRAFT | COMING_SOON | ACTIVE | PAUSED | ENDED
+  startsAt        DateTime
+  endsAt          DateTime
+  rewardRule      String   // JSON string
+  limits          String   // JSON string
+  description     String
+  evidenceNeeded  String   @default("")
+  isSimulated     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  budget        Budget?
+  offers        Offer[]
+  leakCases     LeakCase[]
+  challenges    CommuteChallenge[]
+  ledgerEntries LedgerEntry[]
+  reminders     Reminder[]
+}
+
+model Budget {
+  id            String   @id @default(cuid())
+  campaignId    String   @unique
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  totalPaise    Int
+  reservedPaise Int      @default(0)
+  spentPaise    Int      @default(0)
+  updatedAt     DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+// Reuse & Earn
+// ─────────────────────────────────────────────
+
+model Offer {
+  id                String   @id @default(cuid())
+  partnerId         String
+  partner           Partner  @relation(fields: [partnerId], references: [id])
+  campaignId        String
+  campaign          Campaign @relation(fields: [campaignId], references: [id])
+  name              String
+  description       String
+  rewardText        String
+  conditions        String
+  stampsNeeded      Int
+  voucherValuePaise Int
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  claims     Claim[]
+  stampCards StampCard[]
+}
+
+model Claim {
+  id         String   @id @default(cuid())
+  opaqueId   String   @unique @default(cuid())
+  code       String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  offerId    String
+  offer      Offer    @relation(fields: [offerId], references: [id])
+  expiresAt  DateTime
+  usedAt     DateTime?
+  status     String   @default("PENDING") // PENDING | CONFIRMED | REJECTED | EXPIRED
+  receiptRef String?
+  createdAt  DateTime @default(now())
+
+  @@index([opaqueId])
+  @@index([code])
+}
+
+model StampCard {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  offerId     String
+  offer       Offer     @relation(fields: [offerId], references: [id])
+  stamps      Int       @default(0)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([userId, offerId])
+}
+
+model MerchantMilestone {
+  id              String    @id @default(cuid())
+  partnerId       String
+  partner         Partner   @relation(fields: [partnerId], references: [id])
+  campaignId      String
+  count           Int       @default(0)
+  flaggedForAudit Boolean   @default(false)
+  rewardedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([partnerId, campaignId])
+}
+
+// ─────────────────────────────────────────────
+// Leak Hunter
+// ─────────────────────────────────────────────
+
+model LeakCase {
+  id          String   @id @default(cuid())
+  campaignId  String?
+  campaign    Campaign? @relation(fields: [campaignId], references: [id])
+  status      String   @default("SUBMITTED") // SUBMITTED | ACCEPTED | ASSIGNED | REPAIRED | VERIFIED_CLOSED | DUPLICATE | REJECTED | NEEDS_INFO | NOT_ASSIGNED
+  lat         Float
+  lng         Float
+  category    String   // ROAD | STATION | PARK | OTHER_PUBLIC
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reports LeakReport[]
+  events  LeakEvent[]
+}
+
+model LeakReport {
+  id          String   @id @default(cuid())
+  caseId      String
+  case        LeakCase @relation(fields: [caseId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  photoUrl    String
+  isDuplicate Boolean  @default(false)
+  submittedAt DateTime @default(now())
+}
+
+model LeakEvent {
+  id          String   @id @default(cuid())
+  caseId      String
+  case        LeakCase @relation(fields: [caseId], references: [id])
+  actorId     String
+  eventType   String   // SUBMITTED | ACCEPTED | REJECTED | NEEDS_INFO | ASSIGNED | REPAIR_UPLOADED | VERIFIED_CLOSED | DUPLICATE_JOINED
+  note        String?
+  evidenceUrl String?
+  createdAt   DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+// Food Rescue
+// ─────────────────────────────────────────────
+
+model FoodListing {
+  id                   String   @id @default(cuid())
+  partnerId            String
+  partner              Partner  @relation(fields: [partnerId], references: [id])
+  type                 String   // SALE | DONATION
+  item                 String
+  quantity             Int
+  reserved             Int      @default(0)
+  originalPricePaise   Int?
+  discountedPricePaise Int?
+  pickupStart          DateTime?
+  pickupEnd            DateTime?
+  ingredients          String?
+  allergens            String?
+  preparedAt           DateTime?
+  consumeBy            DateTime?
+  handlingNeeds        String?
+  neverServedConfirmed Boolean  @default(false)
+  active               Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  reservations Reservation[]
+  parcels      DonationParcel[]
+}
+
+model Reservation {
+  id          String   @id @default(cuid())
+  listingId   String
+  listing     FoodListing @relation(fields: [listingId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  quantity    Int
+  pickupCode  String   @unique
+  status      String   @default("ACTIVE") // ACTIVE | CONFIRMED | EXPIRED | CANCELLED
+  expiresAt   DateTime
+  confirmedAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+model DonationParcel {
+  id              String   @id @default(cuid())
+  listingId       String
+  listing         FoodListing @relation(fields: [listingId], references: [id])
+  partnerId       String
+  partner         Partner  @relation(fields: [partnerId], references: [id])
+  parcelCode      String   @unique
+  status          String   @default("PENDING") // PENDING | ACCEPTED_BY_PARTNER | COLLECTED | DELIVERED | ACCEPTED | REJECTED
+  rejectionReason String?
+  quantity        Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  mission DeliveryMission?
+}
+
+model DeliveryMission {
+  id          String         @id @default(cuid())
+  parcelId    String         @unique
+  parcel      DonationParcel @relation(fields: [parcelId], references: [id])
+  volunteerId String
+  volunteer   User           @relation(fields: [volunteerId], references: [id])
+  acceptedAt  DateTime       @default(now())
+  completedAt DateTime?
+}
+
+// ─────────────────────────────────────────────
+// Electricity & Water
+// ─────────────────────────────────────────────
+
+model Device {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  name        String
+  appliance   String?
+  circuit     String?
+  deviceType  String   // ENERGY_PLUG | CIRCUIT_MONITOR | MANUAL
+  isSimulated Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  readings Reading[]
+}
+
+model Reading {
+  id          String    @id @default(cuid())
+  deviceId    String?
+  device      Device?   @relation(fields: [deviceId], references: [id])
+  householdId String?
+  household   Household? @relation(fields: [householdId], references: [id])
+  watts       Float?
+  kwh         Float?
+  litres      Float?
+  readingAt   DateTime
+  source      String    // MANUAL | EXTRACTED | DEVICE | SIMULATED
+  createdAt   DateTime  @default(now())
+}
+
+model Bill {
+  id                 String   @id @default(cuid())
+  userId             String
+  type               String   // ELECTRICITY | WATER
+  periodStart        DateTime
+  periodEnd          DateTime
+  units              Float
+  amountPaise        Int
+  tariffPaisePerUnit Int?
+  source             String   // MANUAL | EXTRACTED | DEVICE | SIMULATED
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Household {
+  id          String   @id @default(cuid())
+  name        String
+  memberCount Int
+  mode        String   // METER | SENSOR | HABITS_ONLY
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members      HouseholdMember[]
+  readings     Reading[]
+  repairClaims RepairClaim[]
+}
+
+model HouseholdMember {
+  id          String    @id @default(cuid())
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  joinedAt    DateTime  @default(now())
+
+  @@unique([householdId, userId])
+}
+
+model RepairClaim {
+  id           String    @id @default(cuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id])
+  householdId  String?
+  household    Household? @relation(fields: [householdId], references: [id])
+  leakCaseId   String?
+  evidenceUrl  String
+  evidenceHash String
+  invoiceUrl   String?
+  status       String    @default("PENDING") // PENDING | CONFIRMED | REJECTED | EXPIRED
+  rewardedOnce Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([evidenceHash])
+}
+
+// ─────────────────────────────────────────────
+// Green Commute
+// ─────────────────────────────────────────────
+
+model CommuteChallenge {
+  id               String   @id @default(cuid())
+  campaignId       String
+  campaign         Campaign @relation(fields: [campaignId], references: [id])
+  modes            String   // JSON array string, e.g. '["BUS","METRO"]'
+  targetJourneys   Int
+  dailyLimit       Int
+  remainingSlots   Int
+  startsAt         DateTime
+  endsAt           DateTime
+  rewardValuePaise Int
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tickets TicketSubmission[]
+}
+
+model TicketSubmission {
+  id          String           @id @default(cuid())
+  challengeId String
+  challenge   CommuteChallenge @relation(fields: [challengeId], references: [id])
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  imageUrl    String
+  imageHash   String
+  ticketId    String
+  journeyDate DateTime
+  status      String           @default("SUBMITTED") // SUBMITTED | APPROVED | REJECTED | DUPLICATE
+  reviewId    String?
+  createdAt   DateTime         @default(now())
+
+  @@index([imageHash])
+  @@index([ticketId, challengeId])
+}
+
+// ─────────────────────────────────────────────
+// Wallet, Ledger & Redemptions
+// ─────────────────────────────────────────────
+
+model LedgerEntry {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  campaignId  String?
+  campaign    Campaign? @relation(fields: [campaignId], references: [id])
+  account     String    // STAMPS | PENDING | AVAILABLE | VOUCHER
+  amountPaise Int?
+  stamps      Int?
+  type        String    // EARN_STAMP | USE_STAMP | EARN_PENDING | APPROVE_PENDING | REJECT_PENDING | RESERVE_REDEMPTION | COMPLETE_REDEMPTION | RELEASE_REDEMPTION | REVERSE
+  refType     String
+  refId       String
+  note        String?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Voucher {
+  id                String    @id @default(cuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  campaignId        String
+  valuePaise        Int
+  minimumSpendPaise Int       @default(0)
+  partnerId         String
+  expiresAt         DateTime
+  redeemedAt        DateTime?
+  createdAt         DateTime  @default(now())
+}
+
+model Redemption {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  code       String    @unique
+  valuePaise Int
+  status     String    @default("RESERVED") // RESERVED | USED | EXPIRED | CANCELLED
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([code])
+}
+
+// ─────────────────────────────────────────────
+// Reviews, Notifications, Idempotency, Audit
+// ─────────────────────────────────────────────
+
+model Review {
+  id         String   @id @default(cuid())
+  reviewerId String
+  reviewer   User     @relation("reviewer", fields: [reviewerId], references: [id])
+  refType    String
+  refId      String
+  decision   String   // APPROVED | REJECTED | NEEDS_INFO
+  reason     String?
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Reminder {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  triggerAt  DateTime
+  sent       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, campaignId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  actor     User     @relation("auditActor", fields: [actorId], references: [id])
+  action    String
+  refType   String
+  refId     String
+  meta      String?  // JSON string
+  createdAt DateTime @default(now())
+
+  @@index([actorId, createdAt])
+}
+
+model IdempotencyKey {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  endpoint       String
+  responseStatus Int
+  responseBody   String
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@index([key])
+  @@index([expiresAt])
+}

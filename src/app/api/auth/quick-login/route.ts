@@ -2,17 +2,21 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/server/db'
 import { getUserWithRoles, normalizeEmail } from '@/server/services/authService'
-import { createSession, setSessionCookie, type SessionPayload } from '@/server/session'
+import { createSession, setSessionCookie } from '@/server/session'
+import { normalizeRole, ROLE_HOME_PATHS, type AppRole } from '@/server/domain/roles'
+import { isStaffUsername } from '@/server/domain/username'
 
 const schema = z.object({
-  role: z.enum(['CITIZEN', 'USER', 'MERCHANT', 'REVIEWER', 'SPONSOR', 'ADMIN']).optional(),
+  role: z.enum(['CITIZEN', 'SHOPKEEPER', 'MERCHANT', 'PLUMBER', 'REVIEWER', 'FOOD_PARTNER', 'SPONSOR', 'ADMIN']).optional(),
   email: z.string().optional(),
 })
 
 const ROLE_TO_EMAIL: Record<string, string> = {
   CITIZEN: 'user@demo',
-  USER: 'user@demo',
-  MERCHANT: 'merchant@demo',
+  SHOPKEEPER: 'shop@demo',
+  MERCHANT: 'shop@demo',
+  PLUMBER: 'plumber@demo',
+  FOOD_PARTNER: 'ngo@demo',
   REVIEWER: 'reviewer@demo',
   SPONSOR: 'sponsor@demo',
   ADMIN: 'admin@demo',
@@ -35,18 +39,17 @@ export async function POST(req: NextRequest) {
     where: { email: targetEmail },
   })
 
-  // Fallback: if not found by exact email, try finding user whose email starts with the role prefix
+  // Fallback: search by prefix
   if (!user && parsed.data.role) {
     const fallbackPrefix = parsed.data.role.toLowerCase()
     user = await prisma.user.findFirst({
       where: {
-        email: { startsWith: fallbackPrefix === 'citizen' ? 'user' : fallbackPrefix },
+        email: { startsWith: fallbackPrefix === 'citizen' ? 'user' : fallbackPrefix === 'shopkeeper' ? 'shop' : fallbackPrefix },
       },
     })
   }
 
   if (!user) {
-    // If still not found, fallback to any first user
     user = await prisma.user.findFirst()
   }
 
@@ -55,36 +58,54 @@ export async function POST(req: NextRequest) {
   }
 
   const userWithRoles = await getUserWithRoles(user.id)
-  const roles = userWithRoles?.roleGrants.map(g => g.role) ?? ['USER']
+  const rawRoles = userWithRoles?.roleGrants.map(g => g.role) ?? []
+  const roles = Array.from(
+    new Set(rawRoles.map(normalizeRole).concat(['CITIZEN']))
+  ) as AppRole[]
+
   const partnerIds = userWithRoles?.roleGrants
     .filter(g => g.partnerId)
     .map(g => g.partnerId!) ?? []
 
-  if (!roles.includes('USER')) roles.unshift('USER')
+  const requestedRole = parsed.data.role ? normalizeRole(parsed.data.role) : undefined
+  const isAdminStaff = isStaffUsername(user.username ?? '')
 
-  const payload: SessionPayload = {
-    userId: user.id,
-    email: user.email,
-    displayName: user.displayName,
-    roles: roles as string[],
+  // If user has 2+ roles or is staff and didn't explicitly pick a role from quick login button, route to /choose-role
+  const redirectUrl = requestedRole && roles.includes(requestedRole)
+    ? ROLE_HOME_PATHS[requestedRole]
+    : roles.length >= 2 || isAdminStaff
+    ? '/choose-role'
+    : ROLE_HOME_PATHS[roles[0] || 'CITIZEN']
+
+  const activeRole = requestedRole && roles.includes(requestedRole)
+    ? requestedRole
+    : roles.length === 1 && !isAdminStaff
+    ? roles[0]
+    : 'CITIZEN'
+
+  const token = await createSession(
+    {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      displayName: user.displayName,
+    },
+    roles,
     partnerIds,
-  }
-
-  const token = await createSession(payload)
-
-  const redirectUrl = roles.includes('ADMIN') && parsed.data.role === 'ADMIN'
-    ? '/admin'
-    : roles.includes('MERCHANT') && parsed.data.role === 'MERCHANT'
-    ? '/merchant'
-    : roles.includes('REVIEWER') && parsed.data.role === 'REVIEWER'
-    ? '/reviewer'
-    : roles.includes('SPONSOR') && parsed.data.role === 'SPONSOR'
-    ? '/sponsor'
-    : '/home'
+    activeRole
+  )
 
   const res = NextResponse.json({
     success: true,
-    user: payload,
+    user: {
+      userId: user.id,
+      email: user.email,
+      username: user.username,
+      displayName: user.displayName,
+      activeRole,
+      roles,
+      partnerIds,
+    },
     redirectUrl,
   })
 

@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { verifyOtpCode, getUserWithRoles } from '@/server/services/authService'
 import { createSession, setSessionCookie } from '@/server/session'
-import type { SessionPayload } from '@/server/session'
+import { normalizeRole, ROLE_HOME_PATHS, type AppRole } from '@/server/domain/roles'
+import { isStaffUsername } from '@/server/domain/username'
 
 const schema = z.object({
-  email: z.string().trim().toLowerCase().refine(
-    e => /^[^\s@]+@[^\s@]+$/.test(e),
-    { message: 'Invalid email address' }
-  ),
+  email: z.string().trim().min(3).max(100),
   code: z.string().length(6).regex(/^\d{6}$/),
   displayName: z.string().min(2).max(50).optional(),
   locality: z.string().min(2).max(50).optional(),
+  preferredRole: z.string().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -22,7 +21,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 })
   }
 
-  const { email, code, displayName, locality } = parsed.data
+  const { email, code, displayName, locality, preferredRole } = parsed.data
   const result = await verifyOtpCode(
     email,
     code,
@@ -35,32 +34,49 @@ export async function POST(req: NextRequest) {
   }
 
   const userWithRoles = await getUserWithRoles(result.user.id)
-  const roles = userWithRoles?.roleGrants.map(g => g.role) ?? ['USER']
+  const rawRoles = userWithRoles?.roleGrants.map(g => g.role) ?? []
+  const roles = Array.from(
+    new Set(rawRoles.map(normalizeRole).concat(['CITIZEN']))
+  ) as AppRole[]
+
   const partnerIds = userWithRoles?.roleGrants
     .filter(g => g.partnerId)
     .map(g => g.partnerId!) ?? []
 
-  // Ensure USER role is always present
-  if (!roles.includes('USER')) roles.unshift('USER')
+  const isAdminStaff = isStaffUsername(result.user.username ?? '')
+  const hasMultipleRoles = roles.length >= 2
+  const needsChooseRole = (hasMultipleRoles || isAdminStaff) && Boolean(result.user.displayName)
 
-  const payload: SessionPayload = {
-    userId: result.user.id,
-    email: result.user.email,
-    displayName: result.user.displayName,
-    roles: roles as string[],
+  const redirectUrl = !result.user.displayName
+    ? '/onboarding'
+    : needsChooseRole
+    ? '/choose-role'
+    : ROLE_HOME_PATHS[roles[0] || 'CITIZEN']
+
+  const token = await createSession(
+    {
+      id: result.user.id,
+      email: result.user.email,
+      username: result.user.username,
+      displayName: result.user.displayName,
+    },
+    roles,
     partnerIds,
-  }
+    preferredRole
+  )
 
-  const token = await createSession(payload)
   const response = NextResponse.json({
     user: {
       id: result.user.id,
       email: result.user.email,
+      username: result.user.username,
       displayName: result.user.displayName,
       city: result.user.city,
     },
     roles,
     needsOnboarding: !result.user.displayName,
+    needsChooseRole,
+    redirectUrl,
   })
 
   setSessionCookie(response, token)

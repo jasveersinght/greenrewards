@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTokenFromRequest, verifySession } from '@/server/session'
+import { getTokenFromRequest, verifySessionJwt } from '@/server/sessionToken'
 
 const PUBLIC_PATHS = [
   '/login',
@@ -16,16 +16,19 @@ const PUBLIC_PATHS = [
   '/api/dev/',
   '/api/electricity/predict',
 ]
-const ADMIN_PATHS = ['/admin']
-const MERCHANT_PATHS = ['/merchant']
-const REVIEWER_PATHS = ['/reviewer']
+
+const ADMIN_PATHS = ['/admin', '/api/admin']
+const MERCHANT_PATHS = ['/merchant', '/api/merchant']
+const REVIEWER_PATHS = ['/reviewer', '/api/reviewer']
+const PLUMBER_PATHS = ['/plumber', '/api/plumber']
+const PARTNER_PATHS = ['/partner', '/api/partner']
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   // Check existing session token
   const token = getTokenFromRequest(req)
-  const session = token ? await verifySession(token) : null
+  const session = token ? await verifySessionJwt(token) : null
 
   // Allow landing page unconditionally
   if (pathname === '/') {
@@ -33,7 +36,7 @@ export async function middleware(req: NextRequest) {
   }
 
   // Allow public paths unconditionally
-  if (PUBLIC_PATHS.some(p => pathname.startsWith(p))) {
+  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
     return NextResponse.next()
   }
 
@@ -57,8 +60,8 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  // Role-gated paths
-  if (ADMIN_PATHS.some(p => pathname.startsWith(p))) {
+  // Role-gated paths: strictly check granted roles on server
+  if (ADMIN_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
     if (!session.roles.includes('ADMIN')) {
       return pathname.startsWith('/api/')
         ? NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -66,16 +69,32 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  if (MERCHANT_PATHS.some(p => pathname.startsWith(p))) {
-    if (!session.roles.includes('MERCHANT') && !session.roles.includes('ADMIN')) {
+  if (MERCHANT_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+    if (!session.roles.includes('SHOPKEEPER') && !session.roles.includes('ADMIN')) {
       return pathname.startsWith('/api/')
         ? NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         : NextResponse.redirect(new URL('/home', req.url))
     }
   }
 
-  if (REVIEWER_PATHS.some(p => pathname.startsWith(p))) {
+  if (REVIEWER_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
     if (!session.roles.includes('REVIEWER') && !session.roles.includes('ADMIN')) {
+      return pathname.startsWith('/api/')
+        ? NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        : NextResponse.redirect(new URL('/home', req.url))
+    }
+  }
+
+  if (PLUMBER_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+    if (!session.roles.includes('PLUMBER') && !session.roles.includes('ADMIN')) {
+      return pathname.startsWith('/api/')
+        ? NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        : NextResponse.redirect(new URL('/home', req.url))
+    }
+  }
+
+  if (PARTNER_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+    if (!session.roles.includes('FOOD_PARTNER') && !session.roles.includes('ADMIN')) {
       return pathname.startsWith('/api/')
         ? NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         : NextResponse.redirect(new URL('/home', req.url))

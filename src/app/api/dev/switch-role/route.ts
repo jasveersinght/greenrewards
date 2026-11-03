@@ -39,13 +39,17 @@ export async function POST(req: NextRequest) {
     if (partner) partnerIds.push(partner.id);
   }
 
-  const newSessionToken = await createSession({
-    userId: session.userId,
-    email: session.email,
-    displayName: session.displayName,
-    roles: [targetRole],
+  const newSessionToken = await createSession(
+    {
+      id: session.userId,
+      email: session.email,
+      username: session.username,
+      displayName: session.displayName,
+    },
+    [targetRole, ...session.roles],
     partnerIds,
-  });
+    targetRole
+  );
 
   const response = NextResponse.json({
     success: true,

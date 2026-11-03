@@ -9,14 +9,32 @@
 import { prisma } from '../src/server/db'
 import bcrypt from 'bcryptjs'
 
-// Helper: create user + ensure USER role grant
-async function createUser(email: string, displayName: string, city = 'Chennai', locality = 'Kattankulathur') {
+// Helper: create user + ensure CITIZEN role grant
+async function createUser(
+  email: string,
+  displayName: string,
+  city = 'Chennai',
+  locality = 'Kattankulathur',
+  username?: string
+) {
+  const defaultUsername = email.split('@')[0].toLowerCase().replace(/[^a-z0-9._]/g, '')
   const user = await prisma.user.upsert({
     where: { email },
-    create: { email, displayName, city, locality },
-    update: { displayName, city, locality },
+    create: {
+      email,
+      displayName,
+      city,
+      locality,
+      username: username ?? defaultUsername,
+    },
+    update: {
+      displayName,
+      city,
+      locality,
+      ...(username ? { username } : {}),
+    },
   })
-  await grantRole(user.id, 'USER', undefined, 'seed')
+  await grantRole(user.id, 'CITIZEN', undefined, 'seed')
   return user
 }
 
@@ -61,26 +79,110 @@ async function main() {
   // ──────────────────────────────────────────────────────────────
   const ecoBrand = await prisma.partner.upsert({
     where: { id: 'partner-ecobrand' },
-    create: { id: 'partner-ecobrand', name: 'EcoBrand (Simulated)', type: 'SPONSOR', approved: true, isSimulated: true },
-    update: {},
+    create: {
+      id: 'partner-ecobrand',
+      name: 'EcoBrand CSR (Simulated)',
+      type: 'SPONSOR',
+      approved: true,
+      isSimulated: true,
+    },
+    update: {
+      name: 'EcoBrand CSR (Simulated)',
+      isSimulated: true,
+    },
   })
 
   const freshMart = await prisma.partner.upsert({
     where: { id: 'partner-freshmart' },
-    create: { id: 'partner-freshmart', name: 'FreshMart Grocery', type: 'SHOP', approved: true, isSimulated: false, locationId: locations[3].id },
-    update: {},
+    create: {
+      id: 'partner-freshmart',
+      name: 'FreshMart Grocery',
+      type: 'SHOP',
+      approved: true,
+      isSimulated: false,
+      address: 'Potheri High Road, Kattankulathur',
+      locality: 'Potheri',
+      phone: '+91 98765 43210',
+      category: 'Grocery & Daily Essentials',
+      openingHours: '8:00 AM - 10:00 PM',
+      registrationNo: 'TN-KTR-2024-GR01',
+      discountOffer: '₹30 off on ₹300+',
+      locationId: locations[3].id,
+    },
+    update: {
+      address: 'Potheri High Road, Kattankulathur',
+      locality: 'Potheri',
+      phone: '+91 98765 43210',
+      category: 'Grocery & Daily Essentials',
+      openingHours: '8:00 AM - 10:00 PM',
+      discountOffer: '₹30 off on ₹300+',
+    },
+  })
+
+  const quickFix = await prisma.partner.upsert({
+    where: { id: 'partner-quickfix' },
+    create: {
+      id: 'partner-quickfix',
+      name: 'Quick Fix Plumbing',
+      type: 'PLUMBER',
+      approved: true,
+      isSimulated: false,
+      address: 'Shop 4, Station Road, Potheri',
+      locality: 'Potheri',
+      serviceArea: 'Potheri, Guduvanchery, Kattankulathur',
+      phone: '+91 94444 88990',
+      registrationNo: 'PLUMB-KTR-889',
+      discountOffer: '15% off repair service charge for Green Rewards citizens',
+    },
+    update: {
+      address: 'Shop 4, Station Road, Potheri',
+      locality: 'Potheri',
+      serviceArea: 'Potheri, Guduvanchery, Kattankulathur',
+      phone: '+91 94444 88990',
+      discountOffer: '15% off repair service charge for Green Rewards citizens',
+    },
   })
 
   const annapoorna = await prisma.partner.upsert({
     where: { id: 'partner-annapoorna' },
-    create: { id: 'partner-annapoorna', name: 'Annapoorna Kitchen', type: 'RESTAURANT', approved: true, isSimulated: false, locationId: locations[4].id },
-    update: {},
+    create: {
+      id: 'partner-annapoorna',
+      name: 'Annapoorna Kitchen',
+      type: 'RESTAURANT',
+      approved: true,
+      isSimulated: false,
+      address: 'SRM Main Gate Road, Potheri',
+      locality: 'Potheri',
+      phone: '+91 98765 12345',
+      category: 'Restaurant & Catering',
+      locationId: locations[4].id,
+    },
+    update: {
+      address: 'SRM Main Gate Road, Potheri',
+      locality: 'Potheri',
+      phone: '+91 98765 12345',
+    },
   })
 
   const greenHands = await prisma.partner.upsert({
     where: { id: 'partner-greenhands' },
-    create: { id: 'partner-greenhands', name: 'GreenHands NGO (Simulated)', type: 'FOOD_PARTNER', approved: true, isSimulated: true, locationId: locations[5].id },
-    update: {},
+    create: {
+      id: 'partner-greenhands',
+      name: 'Simulated Food Bank (GreenHands NGO)',
+      type: 'FOOD_PARTNER',
+      approved: true,
+      isSimulated: true,
+      address: '42 Gandhi Road, Maraimalai Nagar',
+      locality: 'Maraimalai Nagar',
+      phone: '+91 98400 11223',
+      locationId: locations[5].id,
+    },
+    update: {
+      name: 'Simulated Food Bank (GreenHands NGO)',
+      address: '42 Gandhi Road, Maraimalai Nagar',
+      locality: 'Maraimalai Nagar',
+      phone: '+91 98400 11223',
+    },
   })
 
   const metroWater = await prisma.partner.upsert({
@@ -101,31 +203,166 @@ async function main() {
     update: {},
   })
 
-  console.log('  ✅ Created partners')
+  // Collection Centres for Food Partner
+  await prisma.collectionCentre.upsert({
+    where: { id: 'centre-gh-1' },
+    create: {
+      id: 'centre-gh-1',
+      partnerId: greenHands.id,
+      name: 'GreenHands Hub Maraimalai Nagar',
+      address: '42 Gandhi Road, Maraimalai Nagar',
+      locality: 'Maraimalai Nagar',
+      lat: 12.7953,
+      lng: 80.0271,
+      openHours: '9:00 AM - 7:00 PM',
+      contactPhone: '+91 98400 11223',
+      active: true,
+    },
+    update: {},
+  })
+
+  await prisma.collectionCentre.upsert({
+    where: { id: 'centre-gh-2' },
+    create: {
+      id: 'centre-gh-2',
+      partnerId: greenHands.id,
+      name: 'SRM Community Drop Point',
+      address: 'Near SRM Arch, Potheri High Road',
+      locality: 'Potheri',
+      lat: 12.8231,
+      lng: 80.0444,
+      openHours: '10:00 AM - 6:00 PM',
+      contactPhone: '+91 98400 99887',
+      active: true,
+    },
+    update: {},
+  })
+
+  console.log('  ✅ Created partners and collection centres')
 
   // ──────────────────────────────────────────────────────────────
-  // 3. USERS
+  // 3. USERS & DEMO ACCOUNTS
   // ──────────────────────────────────────────────────────────────
-  const userDemo = await createUser('user@demo', 'Priya Kumar', 'Chennai', 'Kattankulathur')
-  const user2Demo = await createUser('user2@demo', 'Arjun Sharma', 'Chennai', 'Potheri')
-  const merchantDemo = await createUser('merchant@demo', 'Ravi Merchant', 'Chennai', 'Potheri')
-  const restaurantDemo = await createUser('restaurant@demo', 'Meena Restaurant', 'Chennai', 'Potheri')
-  const reviewerDemo = await createUser('reviewer@demo', 'Kavitha Reviewer', 'Chennai', 'Guduvancheri')
-  const maintenanceDemo = await createUser('maintenance@demo', 'Suresh Maintenance', 'Chennai', 'Kattankulathur')
-  const foodPartnerDemo = await createUser('foodpartner@demo', 'GreenHands Coordinator', 'Chennai', 'Maraimalai Nagar')
-  const sponsorDemo = await createUser('sponsor@demo', 'EcoBrand Manager', 'Chennai', 'Kattankulathur')
-  const adminDemo = await createUser('admin@demo', 'Admin User', 'Chennai', 'Kattankulathur')
+  // user@demo (Citizen only -> straight to /home)
+  const userDemo = await createUser('user@demo', 'Priya Kumar', 'Chennai', 'Kattankulathur', 'user.demo')
 
-  // Grant roles
-  await grantRole(merchantDemo.id, 'MERCHANT', freshMart.id, adminDemo.id)
-  await grantRole(restaurantDemo.id, 'MERCHANT', annapoorna.id, adminDemo.id)
-  await grantRole(reviewerDemo.id, 'REVIEWER', undefined, adminDemo.id)
-  await grantRole(maintenanceDemo.id, 'MAINTENANCE', undefined, adminDemo.id)
-  await grantRole(foodPartnerDemo.id, 'FOOD_PARTNER', greenHands.id, adminDemo.id)
-  await grantRole(sponsorDemo.id, 'SPONSOR', ecoBrand.id, adminDemo.id)
+  // user2@demo (Citizen only with a pending role application)
+  const user2Demo = await createUser('user2@demo', 'Arjun Sharma', 'Chennai', 'Potheri', 'arjun.sharma')
+
+  // shop@demo (Citizen + Shopkeeper "FreshMart", partnerId linked)
+  const shopDemo = await createUser('shop@demo', 'Ravi Merchant', 'Chennai', 'Potheri', 'ravi.merchant')
+  await grantRole(shopDemo.id, 'SHOPKEEPER', freshMart.id, 'seed')
+
+  // plumber@demo (Citizen + Plumber "Quick Fix Plumbing", partnerId linked)
+  const plumberDemo = await createUser('plumber@demo', 'Karthik Plumber', 'Chennai', 'Potheri', 'karthik.plumber')
+  await grantRole(plumberDemo.id, 'PLUMBER', quickFix.id, 'seed')
+
+  // ngo@demo (Citizen + Food partner "Simulated Food Bank", partnerId linked)
+  const ngoDemo = await createUser('ngo@demo', 'GreenHands Coordinator', 'Chennai', 'Maraimalai Nagar', 'greenhands.ngo')
+  await grantRole(ngoDemo.id, 'FOOD_PARTNER', greenHands.id, 'seed')
+
+  // reviewer@demo (Citizen + Reviewer)
+  const reviewerDemo = await createUser('reviewer@demo', 'Kavitha Reviewer', 'Chennai', 'Guduvancheri', 'kavitha.reviewer')
+  await grantRole(reviewerDemo.id, 'REVIEWER', undefined, 'seed')
+
+  // sponsor@demo (Citizen + Sponsor "EcoBrand CSR", partnerId linked)
+  const sponsorDemo = await createUser('sponsor@demo', 'EcoBrand Manager', 'Chennai', 'Kattankulathur', 'ecobrand.manager')
+  await grantRole(sponsorDemo.id, 'SPONSOR', ecoBrand.id, 'seed')
+
+  // admin@demo (username admin.demo, Citizen + Reviewer + Admin -> sees picker with 3 options)
+  const adminDemo = await createUser('admin@demo', 'Admin User', 'Chennai', 'Kattankulathur', 'admin.demo')
   await grantRole(adminDemo.id, 'ADMIN', undefined, 'seed')
+  await grantRole(adminDemo.id, 'REVIEWER', undefined, 'seed')
 
-  console.log('  ✅ Created users + role grants')
+  // Backward compatibility alias accounts
+  const merchantDemo = await createUser('merchant@demo', 'Ravi Merchant', 'Chennai', 'Potheri')
+  await grantRole(merchantDemo.id, 'SHOPKEEPER', freshMart.id, adminDemo.id)
+
+  const foodPartnerDemo = await createUser('foodpartner@demo', 'GreenHands Coordinator', 'Chennai', 'Maraimalai Nagar')
+  await grantRole(foodPartnerDemo.id, 'FOOD_PARTNER', greenHands.id, adminDemo.id)
+
+  const restaurantDemo = await createUser('restaurant@demo', 'Meena Restaurant', 'Chennai', 'Potheri')
+  await grantRole(restaurantDemo.id, 'SHOPKEEPER', annapoorna.id, adminDemo.id)
+
+  // Seed pending role application from user2@demo so /admin/applications has sample data
+  await prisma.roleApplication.upsert({
+    where: { id: 'role-app-user2-shop' },
+    create: {
+      id: 'role-app-user2-shop',
+      userId: user2Demo.id,
+      role: 'SHOPKEEPER',
+      organizationName: 'Sharma Organics & Cafe',
+      locality: 'Potheri',
+      phone: '+91 98765 00112',
+      description: 'Organic produce and beverage store on GST road wanting to accept Green Points and issue reusable stamps.',
+      shopAddress: '12 GST Road, Potheri, Chengalpattu 603203',
+      shopCategory: 'Organic Grocery & Cafe',
+      status: 'PENDING',
+    },
+    update: {},
+  })
+
+  // Seed realistic plumber repair claims
+  await prisma.repairClaim.upsert({
+    where: { id: 'claim-leak-potheri-1' },
+    create: {
+      id: 'claim-leak-potheri-1',
+      userId: userDemo.id,
+      plumberPartnerId: quickFix.id,
+      assignedPlumberId: plumberDemo.id,
+      repairStage: 'ACCEPTED',
+      category: 'PIPE',
+      address: 'Flat 302, Green Acres Apt, Potheri High Road',
+      locality: 'Potheri',
+      notes: 'Overhead tank distribution line leakage in utility balcony',
+      beforePhotoUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+      evidenceUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+      evidenceHash: 'hash-pipe-leak-1',
+      status: 'PENDING',
+    },
+    update: {},
+  })
+
+  await prisma.repairClaim.upsert({
+    where: { id: 'claim-leak-ktr-2' },
+    create: {
+      id: 'claim-leak-ktr-2',
+      userId: user2Demo.id,
+      plumberPartnerId: quickFix.id,
+      assignedPlumberId: plumberDemo.id,
+      repairStage: 'REPAIRED',
+      category: 'TAP',
+      address: '15 VOC Street, Kattankulathur',
+      locality: 'Kattankulathur',
+      notes: 'Kitchen brass valve seal replaced, 0.5 bar pressure restored',
+      beforePhotoUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+      afterPhotoUrl: 'https://images.unsplash.com/photo-1585704032915-c3400ca199e7?auto=format&fit=crop&w=600&q=80',
+      meterReading: 142.8,
+      evidenceUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+      evidenceHash: 'hash-tap-leak-2',
+      status: 'PENDING',
+    },
+    update: {},
+  })
+
+  await prisma.repairClaim.upsert({
+    where: { id: 'claim-leak-gudu-3' },
+    create: {
+      id: 'claim-leak-gudu-3',
+      userId: userDemo.id,
+      repairStage: 'REQUESTED',
+      category: 'TOILET',
+      address: 'A-14 SRM Nagar, Guduvanchery',
+      locality: 'Guduvanchery',
+      notes: 'Cistern overflow valve stuck, continuous trickle',
+      evidenceUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=600&q=80',
+      evidenceHash: 'hash-toilet-leak-3',
+      status: 'PENDING',
+    },
+    update: {},
+  })
+
+  console.log('  ✅ Created users, role grants, applications & repair claims')
 
   // ──────────────────────────────────────────────────────────────
   // 4. CAMPAIGNS (one per section + one COMING_SOON)
@@ -672,16 +909,15 @@ async function main() {
   console.log('  ✅ Seeded 6 catalog items and 60 coupon codes')
 
   console.log('\n🎉 Seeding complete!')
-  console.log('\nDemo accounts (OTP sent to console on login):')
-  console.log('  user@demo       → Regular user (Priya Kumar)')
-  console.log('  user2@demo      → Regular user (Arjun Sharma)')
-  console.log('  merchant@demo   → Merchant at FreshMart Grocery')
-  console.log('  restaurant@demo → Merchant at Annapoorna Kitchen')
-  console.log('  reviewer@demo   → Reviewer role')
-  console.log('  maintenance@demo→ Maintenance role')
-  console.log('  foodpartner@demo→ Food Partner at GreenHands NGO')
-  console.log('  sponsor@demo    → Sponsor at EcoBrand')
-  console.log('  admin@demo      → Admin (full access)')
+  console.log('\nDemo accounts (OTP sent to console or available on /login):')
+  console.log('  user@demo       → Citizen only (Priya Kumar)')
+  console.log('  user2@demo      → Citizen with pending Shopkeeper application (Arjun Sharma)')
+  console.log('  shop@demo       → Citizen + Shopkeeper at FreshMart Grocery (Ravi Merchant)')
+  console.log('  plumber@demo    → Citizen + Plumber at Quick Fix Plumbing (Karthik Plumber)')
+  console.log('  ngo@demo        → Citizen + Food Partner at Simulated Food Bank (GreenHands Coordinator)')
+  console.log('  reviewer@demo   → Citizen + Reviewer (Kavitha Reviewer)')
+  console.log('  sponsor@demo    → Citizen + Sponsor at EcoBrand (EcoBrand Manager)')
+  console.log('  admin@demo      → username: admin.demo (Citizen + Reviewer + Admin)')
   console.log('\nAll funders/authorities marked Simulated. Green Points are non-monetary rewards.')
 }
 

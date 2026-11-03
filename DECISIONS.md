@@ -42,3 +42,21 @@ All architectural choices and resolutions for ambiguous specifications are recor
 - **Guard Test:** Added Vitest unit test `tests/unit/noRupeeGuard.test.ts` scanning `src/` and `prisma/seed.ts` for rupee references, failing on un-allowlisted instances or hardcoded reward amounts.
 - **Next.js 16 Production Build:** Updated `package.json` `"build"` script to use `next build --webpack` to avoid Turbopack CSS worker IPC panic on Windows (`leaflet.css.css` evaluate_webpack_loader child process crash).
 
+### 8. Unified Authentication & Multi-Role Architecture
+- **Single Login Page:** Completely eliminated separate admin login pages or buttons. All users (Citizens, Shopkeepers, Plumbers, Reviewers, Food Partners, Sponsors, Admins) log in via `/login` using Email OR Username handle + OTP.
+- **Role Continuation Screen (`/choose-role`):** When a user holds 2 or more granted roles or is an administrative staff member, they are presented with a role picker ("How do you want to continue, <name>?"). Cards with icon, business name, and permission descriptions are displayed strictly for granted roles. Single-role citizens skip the picker and land directly on `/home`.
+- **Database-Backed Sessions (`Session` table):** The user's chosen `activeRole` is stored in the database session record (`Session.activeRole`). On every request, `verifySession()` confirms the active role against live `RoleGrant` rows. If a grant is revoked by an admin, the active session automatically falls back to `CITIZEN`.
+- **Admin Self-Lockout & System Lockout Prevention:** The role revocation endpoint (`/api/admin/users/[id]/roles`) explicitly blocks an admin from removing their own last ADMIN role (`CANNOT_REMOVE_OWN_LAST_ADMIN_ROLE`) and prevents removing the last system administrator (`CANNOT_REMOVE_LAST_SYSTEM_ADMIN`).
+- **Staff Username Namespace:** All staff accounts holding the `ADMIN` role are required to have a handle starting with `admin` (e.g. `admin.demo`, `admin.kavitha`). Public registrations and citizen profile updates reject any username starting with `admin` or homoglyphs/lookalikes (`adm1n`, `_admin`, `.admin`, etc.).
+- **Citizen Role Applications (`/apply`):** Citizens can apply for `SHOPKEEPER`, `PLUMBER`, `FOOD_PARTNER`, or `SPONSOR`. Applications are reviewed and approved/rejected with reason at `/admin/applications`. Approving an application automatically creates the `Partner` record, links it, and grants the role. `ADMIN` and `REVIEWER` roles cannot be applied for and are grantable by administrators only.
+- **Dedicated Portals for Every Role:**
+  - Citizen (`/home`)
+  - Shopkeeper (`/merchant`): Scan customer reuse stamps, verify claims, redeem coupons
+  - Plumber (`/plumber`): View available plumbing jobs, manage active repair stages (`REQUESTED` -> `ACCEPTED` -> `VISITED` -> `REPAIRED` -> `VERIFIED`), view citizen address, log before/after photos and meter readings
+  - Food Partner (`/partner`): Surplus food parcel donation requests, parcel intake inspection releasing 15 GP to volunteer courier, collection centre hubs, volunteer missions
+  - Reviewer (`/reviewer`): Audit leak reports, verify water repair claims, review commute tickets
+  - Sponsor (`/sponsor`): CSR sustainability dashboards, coupon issuance & metrics
+  - Admin (`/admin`): Applications queue (`/admin/applications`), user & staff management with role toggles (`/admin/users`), partners directory with simulated toggles (`/admin/partners`), points settlement, and ledger cryptographic verification
+- **Edge Middleware Decoupling (`sessionToken.ts`):** Next.js middleware runs in Edge/proxy context where Prisma and Node.js native bindings cannot execute. We decoupled JWT signing/verification (`src/server/sessionToken.ts`) using Edge-safe `jose` for route gating in `middleware.ts`, while keeping full database-backed live session verification (`src/server/session.ts`) in Server Components and API routes.
+
+

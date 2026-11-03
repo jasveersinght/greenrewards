@@ -18,8 +18,8 @@ export async function POST(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  if (!session.roles.includes('MERCHANT') && !session.roles.includes('ADMIN')) {
-    return NextResponse.json({ error: 'Forbidden: Merchant role required' }, { status: 403 })
+  if (!session.roles.includes('SHOPKEEPER') && !session.roles.includes('ADMIN')) {
+    return NextResponse.json({ error: 'Forbidden: Shopkeeper role required' }, { status: 403 })
   }
 
   const body = await req.json().catch(() => ({}))

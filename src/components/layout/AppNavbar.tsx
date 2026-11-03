@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Home,
   Wallet,
@@ -16,13 +16,21 @@ import {
   Zap,
   RotateCcw,
   Gift,
+  RefreshCw,
+  LogOut,
+  ChevronDown,
+  Shield,
+  Briefcase,
 } from 'lucide-react';
+import { ROLE_LABELS, type AppRole } from '@/server/domain/roles';
 
 interface AppNavbarProps {
   user: {
     displayName?: string | null;
     email?: string;
+    username?: string | null;
     roles: string[];
+    activeRole?: string;
   };
   balancePoints?: number;
   balancePaise?: bigint | number;
@@ -31,6 +39,19 @@ interface AppNavbarProps {
 
 export default function AppNavbar({ user, balancePoints, balancePaise = 0, unreadCount = 0 }: AppNavbarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const navLinks = [
     { href: '/home', label: 'Home', icon: Home },
@@ -48,6 +69,14 @@ export default function AppNavbar({ user, balancePoints, balancePaise = 0, unrea
   const formattedBalance = balancePoints != null
     ? `${balancePoints} GP`
     : `${Number(balancePaise)} GP`;
+
+  const activeRoleName = (ROLE_LABELS[(user.activeRole || 'CITIZEN') as AppRole] || user.activeRole || 'Citizen');
+  const hasMultipleRoles = user.roles.length >= 2 || user.username?.startsWith('admin');
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md transition-all">
@@ -70,7 +99,7 @@ export default function AppNavbar({ user, balancePoints, balancePaise = 0, unrea
           </span>
         </div>
 
-        {/* Center: Desktop Navigation Links (all 9 options available across desktop breakpoints) */}
+        {/* Center: Desktop Navigation Links */}
         <nav className="hidden xl:flex items-center gap-0.5 font-body">
           {navLinks.map((item) => {
             const isActive = pathname === item.href;
@@ -114,7 +143,7 @@ export default function AppNavbar({ user, balancePoints, balancePaise = 0, unrea
           })}
         </nav>
 
-        {/* Right: Balance Pill, Notifications, Role Badges, Profile */}
+        {/* Right: Balance Pill, Notifications, Role Badges, Profile Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Balance Pill */}
           <Link
@@ -140,41 +169,75 @@ export default function AppNavbar({ user, balancePoints, balancePaise = 0, unrea
             )}
           </Link>
 
-          {/* Role Badges */}
-          {user.roles.includes('ADMIN') && (
-            <Link
-              href="/admin"
-              className="hidden sm:inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+          {/* Avatar Menu with Dropdown */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition-colors focus:outline-none"
+              aria-label="User profile menu"
             >
-              Admin
-            </Link>
-          )}
+              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs shadow-2xs">
+                {user.displayName ? user.displayName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+            </button>
 
-          {user.roles.includes('MERCHANT') && (
-            <Link
-              href="/merchant"
-              className="hidden sm:inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
-            >
-              Merchant
-            </Link>
-          )}
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-200 p-2 z-50 text-xs font-body">
+                <div className="px-3 py-2 border-b border-slate-100">
+                  <p className="font-bold text-slate-900 truncate">{user.displayName || 'Green Citizen'}</p>
+                  <p className="text-[11px] text-slate-500 truncate font-mono">
+                    {user.username ? `@${user.username}` : user.email}
+                  </p>
+                  <div className="mt-1.5 flex items-center justify-between text-[11px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                    <span>You&apos;re using:</span>
+                    <span className="font-bold">{activeRoleName}</span>
+                  </div>
+                </div>
 
-          {/* Sponsor Link */}
-          <Link
-            href="/sponsor"
-            className="hidden md:inline-flex items-center text-[11px] font-semibold text-slate-600 hover:text-emerald-700 px-2 py-1 rounded-md transition-colors"
-          >
-            Sponsors
-          </Link>
+                <div className="py-1">
+                  {hasMultipleRoles && (
+                    <Link
+                      href="/choose-role"
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 font-semibold transition-colors"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Switch role...</span>
+                    </Link>
+                  )}
 
-          {/* Profile Avatar */}
-          <Link
-            href="/profile"
-            className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs hover:bg-emerald-700 transition-colors shadow-2xs"
-            title={user.displayName || 'Profile'}
-          >
-            {user.displayName ? user.displayName.charAt(0).toUpperCase() : <User className="w-4 h-4" />}
-          </Link>
+                  <Link
+                    href="/profile"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors"
+                  >
+                    <User className="w-3.5 h-3.5 text-slate-500" />
+                    <span>My Profile &amp; Settings</span>
+                  </Link>
+
+                  <Link
+                    href="/apply"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 font-semibold transition-colors"
+                  >
+                    <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Apply for a Role</span>
+                  </Link>
+                </div>
+
+                <div className="pt-1 border-t border-slate-100">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-rose-700 hover:bg-rose-50 font-semibold transition-colors text-left"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

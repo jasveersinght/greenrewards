@@ -20,7 +20,7 @@ export async function POST(
   }
 
   const isMaintenanceOrAdmin =
-    session.roles.includes('MAINTENANCE') ||
+    session.roles.includes('PLUMBER') ||
     session.roles.includes('REVIEWER') ||
     session.roles.includes('ADMIN')
 

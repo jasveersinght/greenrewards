@@ -1,7 +1,18 @@
 import { getSession } from '@/server/session'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Shield, BarChart3, Globe, Megaphone, Store, FileText } from 'lucide-react'
+import {
+  ArrowLeft,
+  Shield,
+  BarChart3,
+  Globe,
+  Megaphone,
+  Store,
+  FileText,
+  Users,
+  ClipboardList,
+  RefreshCw,
+} from 'lucide-react'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -9,11 +20,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: BarChart3 },
-    { href: '/admin/impact', label: 'City Impact', icon: Globe },
-    { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone },
+    { href: '/admin/applications', label: 'Role Applications', icon: ClipboardList },
+    { href: '/admin/users', label: 'Users & Roles', icon: Users },
     { href: '/admin/partners', label: 'Partners', icon: Store },
-    { href: '/admin/audit', label: 'Audit Log', icon: FileText },
+    { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone },
+    { href: '/admin/impact', label: 'City Impact', icon: Globe },
   ]
+
+  const hasMultipleRoles = session.roles.length >= 2 || session.isAdminStaff
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-body flex flex-col">
@@ -26,15 +40,41 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="border-l border-slate-200 pl-4 flex items-center gap-2">
             <Shield className="w-5 h-5 text-rose-600" />
             <div>
-              <h1 className="font-display text-lg font-bold text-slate-900">Admin Control Center</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="font-display text-lg font-bold text-slate-900">Admin Control Center</h1>
+                <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-bold uppercase tracking-wider">
+                  Admin mode
+                </span>
+              </div>
               <p className="text-xs text-slate-500">Green Rewards Chennai · Municipal Infrastructure</p>
             </div>
           </div>
         </div>
 
-        <span className="text-xs font-bold px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-          Super Admin
-        </span>
+        <div className="flex items-center gap-3">
+          <div className="hidden sm:flex flex-col text-right text-xs">
+            <span className="font-semibold text-slate-700">{session.displayName || 'Administrator'}</span>
+            <span className="text-[11px] text-rose-600 font-medium">You&apos;re using: Admin</span>
+          </div>
+
+          {hasMultipleRoles && (
+            <Link
+              href="/choose-role"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors border border-slate-200"
+              title="Switch role"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+              <span>Switch role</span>
+            </Link>
+          )}
+
+          <Link
+            href="/profile"
+            className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-xs hover:bg-rose-700 transition-colors"
+          >
+            {session.displayName?.charAt(0).toUpperCase() || 'A'}
+          </Link>
+        </div>
       </header>
 
       <div className="flex flex-1">

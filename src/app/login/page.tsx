@@ -186,11 +186,13 @@ function LoginForm() {
         return
       }
 
-      // If user profile is already set, they NEVER see onboarding again!
+      // If user profile is already set, route to choose-role or role portal
       if (data.needsOnboarding) {
         router.push('/onboarding')
+      } else if (data.needsChooseRole) {
+        router.push(data.redirectUrl || '/choose-role')
       } else {
-        router.push('/home')
+        router.push(data.redirectUrl || '/home')
       }
     } finally {
       setLoading(false)
@@ -262,7 +264,7 @@ function LoginForm() {
                   </span>
                 </div>
                 <p className="text-[11px] text-emerald-800/90 mb-3">
-                  Select a pre-configured role to demo instantly without typing or waiting:
+                  Select a pre-configured role to demo instantly or click below to fill credentials:
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   <button
@@ -280,28 +282,41 @@ function LoginForm() {
 
                   <button
                     type="button"
-                    onClick={() => handleQuickLogin('MERCHANT')}
+                    onClick={() => handleQuickLogin('SHOPKEEPER')}
                     disabled={loading}
                     className="flex flex-col items-start p-2.5 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition text-left cursor-pointer group shadow-2xs"
                   >
                     <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-emerald-800">
                       <span>🏪</span>
-                      <span>Merchant</span>
+                      <span>Shopkeeper</span>
                     </div>
-                    <span className="text-[10px] text-slate-500">QR Scan & Stamp</span>
+                    <span className="text-[10px] text-slate-500">FreshMart Grocery</span>
                   </button>
 
                   <button
                     type="button"
-                    onClick={() => handleQuickLogin('ADMIN')}
+                    onClick={() => handleQuickLogin('PLUMBER')}
                     disabled={loading}
                     className="flex flex-col items-start p-2.5 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition text-left cursor-pointer group shadow-2xs"
                   >
                     <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-emerald-800">
-                      <span>⚙️</span>
-                      <span>Admin</span>
+                      <span>🔧</span>
+                      <span>Plumber</span>
                     </div>
-                    <span className="text-[10px] text-blue-600 font-semibold">Settle · Reversal</span>
+                    <span className="text-[10px] text-cyan-700 font-semibold">Quick Fix Plumbing</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('FOOD_PARTNER')}
+                    disabled={loading}
+                    className="flex flex-col items-start p-2.5 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition text-left cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-emerald-800">
+                      <span>🍲</span>
+                      <span>Food Partner</span>
+                    </div>
+                    <span className="text-[10px] text-amber-700 font-semibold">GreenHands NGO</span>
                   </button>
 
                   <button
@@ -327,9 +342,64 @@ function LoginForm() {
                       <span>🏢</span>
                       <span>Sponsor</span>
                     </div>
-                    <span className="text-[10px] text-slate-500">CSR Dashboard</span>
+                    <span className="text-[10px] text-slate-500">EcoBrand CSR</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('ADMIN')}
+                    disabled={loading}
+                    className="flex flex-col items-start p-2.5 bg-purple-50/60 hover:bg-purple-100/70 border border-purple-200 rounded-xl transition text-left cursor-pointer group shadow-2xs col-span-2 sm:col-span-3"
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className="flex items-center gap-1 text-xs font-bold text-purple-900">
+                        <span>⚙️</span>
+                        <span>Admin (@admin.demo)</span>
+                      </div>
+                      <span className="text-[10px] text-purple-700 bg-purple-100 px-2 py-0.5 rounded font-semibold">
+                        Multi-Role Picker
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-purple-800/80 mt-0.5">
+                      Citizen + Reviewer + Admin grants · Tests /choose-role routing &amp; full portal access
+                    </span>
                   </button>
                 </div>
+
+                {/* Demo Accounts List Accordion */}
+                <details className="mt-3 pt-2.5 border-t border-emerald-200/60 group">
+                  <summary className="text-[11px] font-bold text-emerald-900 cursor-pointer hover:underline flex items-center justify-between">
+                    <span>📋 View All Demo Accounts &amp; Credentials</span>
+                    <span className="text-emerald-600 text-[10px] font-normal group-open:hidden">Show</span>
+                    <span className="text-emerald-600 text-[10px] font-normal hidden group-open:inline">Hide</span>
+                  </summary>
+                  <div className="mt-2 space-y-1.5 text-[11px] text-slate-700">
+                    {[
+                      { email: 'user@demo', desc: 'Citizen only → straight to /home (Priya Kumar)' },
+                      { email: 'shop@demo', desc: 'Citizen + Shopkeeper (FreshMart, Potheri)' },
+                      { email: 'plumber@demo', desc: 'Citizen + Plumber (Quick Fix Plumbing)' },
+                      { email: 'ngo@demo', desc: 'Citizen + Food Partner (GreenHands NGO)' },
+                      { email: 'reviewer@demo', desc: 'Citizen + Reviewer (Kavitha Reviewer)' },
+                      { email: 'sponsor@demo', desc: 'Citizen + Sponsor (EcoBrand CSR)' },
+                      { email: 'admin@demo', handle: 'admin.demo', desc: 'Citizen + Reviewer + Admin (picker demo)' },
+                      { email: 'user2@demo', desc: 'Citizen with pending Shopkeeper application' },
+                    ].map(acc => (
+                      <div key={acc.email} className="flex items-center justify-between p-1.5 rounded-lg bg-white/80 border border-emerald-100 hover:bg-emerald-50/50">
+                        <div className="truncate mr-2">
+                          <strong className="text-slate-900 font-mono text-[10px]">{acc.handle ? `@${acc.handle} (${acc.email})` : acc.email}</strong>
+                          <span className="text-slate-500 block text-[10px] truncate">{acc.desc}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEmail(acc.handle || acc.email)}
+                          className="px-2 py-0.5 text-[10px] font-semibold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 rounded transition shrink-0 cursor-pointer"
+                        >
+                          Use
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               </div>
 
               <div className="flex items-center gap-3 my-4">
@@ -432,25 +502,28 @@ function LoginForm() {
                 </>
               )}
 
-              {/* Email Address */}
+              {/* Email Address or Username */}
               <div>
                 <label
                   htmlFor="email"
                   className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5"
                 >
-                  Email address
+                  Email address or username
                 </label>
                 <input
                   id="email"
-                  type="email"
-                  autoComplete="email"
+                  type="text"
+                  autoComplete="username email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="gr-input"
-                  placeholder="you@example.com"
+                  placeholder="user@demo or admin.demo"
                   required
                   disabled={loading}
                 />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Enter your email (e.g. user@demo) or staff username (e.g. admin.demo).
+                </p>
               </div>
 
               {error && (

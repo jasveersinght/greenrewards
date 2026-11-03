@@ -1,13 +1,13 @@
-# 📋 Changes Summary: Green Points & Coupon Store Upgrade
+# 📋 Changes Summary: Green Points, Unified Auth & Multi-Role Architecture
 
 ## 1. Metrics & Test Counts
 
-| Metric | Before Upgrade | After Upgrade | Delta |
-| :--- | :--- | :--- | :--- |
-| **Test Suites (Vitest)** | 12 files passed | **17 files passed** | **+5 suites** |
-| **Total Unit Tests** | 102 passed, 0 failed | **128 passed, 0 failed** | **+26 tests** |
-| **Production Routes** | 55 compiled | **67 compiled** | **+12 routes** |
-| **TypeScript / Build Errors**| 0 | **0** | Clean |
+| Metric | Before Upgrade | Points Engine | Multi-Role & Portals | Total Delta |
+| :--- | :--- | :--- | :--- | :--- |
+| **Test Suites (Vitest)** | 12 files passed | 17 files passed | **18 files passed** | **+6 suites** |
+| **Total Unit Tests** | 102 passed, 0 failed | 128 passed, 0 failed | **143 passed, 0 failed** | **+41 tests** |
+| **Production Routes** | 55 compiled | 67 compiled | **83 compiled** | **+28 routes** |
+| **TypeScript / Build Errors**| 0 | 0 | **0** | **Zero errors** |
 
 ---
 
@@ -215,3 +215,110 @@ Documentation:
 3. Under **System Operations & Verification**:
    - Click **Verify Ledger Integrity**: audits all SHA-256 cryptographic chain hashes from genesis to head and displays `✓ Ledger verified intact across X entries!`.
    - Click **Run Settlement Now (Demo)**: runs the settlement engine immediately, moving matured pending points into available points.
+
+---
+
+### Step 9: Unified Authentication, Role Continuation Screen (`/choose-role`) & Portals
+
+1. **Elimination of Admin Login Page**:
+   - Zero separate admin login screens or links anywhere in the application.
+   - Unified `/login` accepting Email OR Username handle (e.g. `admin.demo` or `user@demo`).
+   - Quick Demo Access buttons for all 7 roles + collapsible accordion listing all seeded demo accounts with 1-click credential fill.
+
+2. **Role Picker (`/choose-role`)**:
+   - Multi-role continuation screen ("How do you want to continue, <name>?") shown when an authenticated user holds 2+ granted roles or is an administrative staff account.
+   - Large cards featuring icons, partner names (e.g. *FreshMart, Potheri* or *Quick Fix Plumbing*), and clear capability descriptions.
+   - Cards appear strictly for roles granted in the database. Choosing a role never grants it.
+   - Includes "Remember my choice on this device" preference checkbox.
+   - Single-role citizens skip the picker and navigate directly to `/home`.
+
+3. **Server-Side Session Storage & Dynamic RBAC**:
+   - Session table (`Session`) stores `activeRole` on the server.
+   - Every request re-evaluates the user's active role against live `RoleGrant` rows. If an admin revokes a grant while the user is logged in, their session automatically falls back to `CITIZEN` on the very next lookup.
+   - Navbar avatar dropdown displays "You're using: [Role]", with a direct "Switch role" link to `/choose-role` for users holding multiple grants.
+   - Non-citizen portals display a persistent mode badge (e.g. *Shopkeeper mode*, *Plumber mode*, *Food Partner mode*, *Admin mode*).
+
+4. **Role Application Flow (`/apply`)**:
+   - Dedicated application portal where citizens can apply for:
+     - `Shopkeeper` (shop name, address, category, phone, description)
+     - `Plumber` (business name, service area, phone, description)
+     - `Food Partner (NGO)` (NGO name, drop-off locality, phone, description)
+     - `Sponsor` (company name, locality, phone, CSR description)
+   - `ADMIN` and `REVIEWER` cannot be applied for (granted by system administrators only).
+   - Admin review at `/admin/applications`: filter tabs (All, Pending, Approved, Rejected) and modals to Approve (automatically creates `Partner`, links `RoleGrant`, logs audit entry, sends notification) or Reject with reason.
+
+5. **Staff Administration & Lockout Prevention**:
+   - Staff accounts holding `ADMIN` are required to have usernames starting with `admin` prefix (e.g. `admin.demo`). Public signups and username edits cannot take any handle starting with `admin` or lookalikes (`adm1n`, `_admin`, `.admin`, etc.).
+   - Admin users management at `/admin/users`: view all users and staff, toggle roles, and create new staff members with reserved prefix enforcement.
+   - Lockout prevention guards:
+     - Cannot remove own last admin role (`CANNOT_REMOVE_OWN_LAST_ADMIN_ROLE`).
+     - Cannot remove last system administrator (`CANNOT_REMOVE_LAST_SYSTEM_ADMIN`).
+   - Partners directory at `/admin/partners`: toggle `isSimulated` status on any partner or funder.
+
+6. **Dedicated Portals for Every Role**:
+   - **Citizen** (`/home`): Green Points balance, action cards, nearby rewards map, impact overview.
+   - **Shopkeeper** (`/merchant`): Scan customer reuse QR codes, confirm bag stamps, redeem store coupons.
+   - **Plumber** (`/plumber`): Browse available plumbing job requests, manage active jobs with stage tracker (`REQUESTED` -> `ACCEPTED` -> `VISITED` -> `REPAIRED` -> `VERIFIED`), view citizen address, log before/after photos and meter readings.
+   - **Food Partner / NGO** (`/partner`): Surplus food rescue parcels, intake inspection releasing 15 GP to volunteer courier, manage collection centre hubs, track volunteer deliveries.
+   - **Reviewer** (`/reviewer`): Review water leak reports, inspect plumber/household repair proofs, audit commute transit tickets.
+   - **Sponsor** (`/sponsor`): CSR campaign funding, coupon issuance & inventory metrics with k-anonymity privacy protection.
+   - **Admin** (`/admin`): Applications review (`/admin/applications`), users & staff management (`/admin/users`), partners directory (`/admin/partners`), cryptographic ledger verification, points settlement.
+
+7. **Visual Verification Screenshots (`docs/screenshots/roles/`)**:
+   - `01-login-single-entry.png`: Unified single login + quick demo access accordion.
+   - `02-choose-role-admin.png`: Multi-role continuation screen for `admin@demo` showing Admin, Reviewer, and Citizen.
+   - `03-choose-role-shopkeeper.png`: Role continuation screen for `shop@demo` showing Shopkeeper (FreshMart) and Citizen.
+   - `04-portal-plumber.png`: Plumber portal (`/plumber`) with stage tracker and active repair claims.
+   - `05-portal-partner.png`: Food Partner portal (`/partner`) with donation parcels and collection centres.
+   - `06-portal-merchant.png`: Merchant portal (`/merchant`) with Shopkeeper mode badge and quick role switcher.
+   - `07-portal-admin-applications.png`: Admin review portal (`/admin/applications`) with pending application from `user2@demo`.
+   - `08-portal-admin-users.png`: Admin user management (`/admin/users`) with role grants and staff creation modal.
+   - `09-citizen-apply.png`: Citizen role application form (`/apply`).
+
+---
+
+## 4. How to Demo Every Role
+
+### 1. Citizen Demo (`user@demo`)
+- Sign in on `/login` using `user@demo` (or click "Citizen" in Quick Demo).
+- Lands directly on `/home` (no picker, single role).
+- View available **500 GP** balance, browse sustainable actions, and redeem partner coupons in the Rewards Store (`/rewards`).
+
+### 2. Shopkeeper Demo (`shop@demo`)
+- Sign in on `/login` using `shop@demo`.
+- Lands on `/choose-role` showing **Shopkeeper - FreshMart Grocery** and **Citizen**.
+- Select **Shopkeeper**: lands on `/merchant` with "Shopkeeper mode" navbar badge.
+- Open `/merchant/scan` to verify customer stamp claims or redeem coupon codes.
+
+### 3. Plumber Demo (`plumber@demo`)
+- Sign in on `/login` using `plumber@demo`.
+- Lands on `/choose-role` showing **Plumber - Quick Fix Plumbing** and **Citizen**.
+- Select **Plumber**: lands on `/plumber` with "Plumber mode" badge.
+- View available household plumbing jobs in Potheri/Kattankulathur, accept jobs, advance stages (`ACCEPTED` -> `REPAIRED`), view citizen address, and record meter readings.
+
+### 4. Food Partner / NGO Demo (`ngo@demo`)
+- Sign in on `/login` using `ngo@demo`.
+- Lands on `/choose-role` showing **Food Partner - Simulated Food Bank** and **Citizen**.
+- Select **Food Partner**: lands on `/partner` with "Food Partner mode" badge.
+- View incoming surplus food donation batches from Annapoorna Kitchen and inspect incoming volunteer parcel deliveries releasing 15 GP to courier.
+
+### 5. Reviewer Demo (`reviewer@demo`)
+- Sign in on `/login` using `reviewer@demo`.
+- Lands on `/choose-role` showing **Reviewer** and **Citizen**.
+- Select **Reviewer**: lands on `/reviewer` with "Reviewer mode" badge.
+- Review community leak reports, inspect plumbing repairs, and verify transit tickets.
+
+### 6. Sponsor Demo (`sponsor@demo`)
+- Sign in on `/login` using `sponsor@demo`.
+- Lands on `/choose-role` showing **Sponsor - EcoBrand CSR** and **Citizen**.
+- Select **Sponsor**: lands on `/sponsor` with "Sponsor mode" badge.
+- View corporate sustainability impact, budget utilization, and coupon issuance metrics.
+
+### 7. Administrator Demo (`admin@demo` or `@admin.demo`)
+- Sign in on `/login` entering username `admin.demo` or email `admin@demo`.
+- Lands on `/choose-role` showing all 3 granted roles: **Admin**, **Reviewer**, and **Citizen**.
+- Select **Admin**: lands on `/admin` with "Admin mode" badge.
+- Click **Role Applications** (`/admin/applications`): review pending application from `Arjun Sharma (user2@demo)` for Sharma Organics & Cafe. Click **Review** and **Approve**.
+- Click **Users & Roles** (`/admin/users`): inspect staff accounts with reserved `admin.` handles, toggle roles, test self-lockout prevention.
+- Click **Partners & Funders** (`/admin/partners`): toggle simulated vs real partner status.
+- Verify ledger cryptographic integrity and run points settlement engine.

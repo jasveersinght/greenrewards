@@ -18,30 +18,75 @@ datasource db {
 model User {
   id          String   @id @default(cuid())
   email       String   @unique
+  username    String?  @unique
   displayName String?
   city        String?
   locality    String?
+  isSuspended Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  roleGrants       RoleGrant[]
-  otpAttempts      OtpAttempt[]
-  claims           Claim[]
-  stampCards       StampCard[]
-  leakReports      LeakReport[]
-  reservations     Reservation[]
-  tickets          TicketSubmission[]
-  devices          Device[]
-  householdMembers HouseholdMember[]
-  ledgerEntries    LedgerEntry[]
-  vouchers         Voucher[]
-  redemptions      Redemption[]
-  notifications    Notification[]
-  reminders        Reminder[]
-  deliveries       DeliveryMission[]
-  reviews          Review[]            @relation("reviewer")
-  repairClaims     RepairClaim[]
-  auditLogs        AuditLog[]          @relation("auditActor")
+  roleGrants                 RoleGrant[]
+  sessions                   Session[]
+  roleApplications           RoleApplication[]
+  decidedRoleApplications    RoleApplication[]   @relation("decidedRoleApplications")
+  otpAttempts                OtpAttempt[]
+  claims                     Claim[]
+  stampCards                 StampCard[]
+  leakReports                LeakReport[]
+  reservations               Reservation[]
+  tickets                    TicketSubmission[]
+  devices                    Device[]
+  householdMembers           HouseholdMember[]
+  ledgerEntries              LedgerEntry[]
+  vouchers                   Voucher[]
+  redemptions                Redemption[]
+  notifications              Notification[]
+  reminders                  Reminder[]
+  deliveries                 DeliveryMission[]
+  reviews                    Review[]            @relation("reviewer")
+  repairClaims               RepairClaim[]
+  assignedPlumberJobs        RepairClaim[]       @relation("plumberAssigned")
+  auditLogs                  AuditLog[]          @relation("auditActor")
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  activeRole String   @default("CITIZEN") // CITIZEN | SHOPKEEPER | PLUMBER | REVIEWER | FOOD_PARTNER | SPONSOR | ADMIN
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  expiresAt  DateTime
+
+  @@index([token])
+  @@index([userId])
+}
+
+model RoleApplication {
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role             String    // SHOPKEEPER | PLUMBER | FOOD_PARTNER | SPONSOR
+  organizationName String
+  locality         String
+  phone            String
+  description      String
+  serviceArea      String?   // For plumbers (localities / pincodes)
+  shopAddress      String?   // For shopkeepers
+  shopCategory     String?   // For shopkeepers
+  proofUrl         String?
+  status           String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  decisionReason   String?
+  decidedByUserId  String?
+  decidedByUser    User?     @relation("decidedRoleApplications", fields: [decidedByUserId], references: [id])
+  decidedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId, status])
+  @@index([status])
 }
 
 model OtpAttempt {
@@ -77,22 +122,50 @@ model RoleGrant {
 // ─────────────────────────────────────────────
 
 model Partner {
-  id          String   @id @default(cuid())
-  name        String
-  type        String   // SHOP | RESTAURANT | FOOD_PARTNER | SPONSOR | AUTHORITY | PLUMBER | OPERATOR
-  approved    Boolean  @default(false)
-  isSimulated Boolean  @default(false)
-  locationId  String?
-  location    Location? @relation(fields: [locationId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  name             String
+  type             String   // SHOP | RESTAURANT | FOOD_PARTNER | SPONSOR | AUTHORITY | PLUMBER | OPERATOR
+  approved         Boolean  @default(false)
+  isSimulated      Boolean  @default(false)
+  address          String?
+  locality         String?
+  phone            String?
+  serviceArea      String?
+  category         String?
+  openingHours     String?
+  registrationNo   String?
+  discountOffer    String?
+  locationId       String?
+  location         Location? @relation(fields: [locationId], references: [id])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  roleGrants   RoleGrant[]
-  campaigns    Campaign[]      @relation("funder")
-  offers       Offer[]
-  foodListings FoodListing[]
-  parcels      DonationParcel[]
-  milestones   MerchantMilestone[]
+  roleGrants        RoleGrant[]
+  campaigns         Campaign[]           @relation("funder")
+  offers            Offer[]
+  foodListings      FoodListing[]
+  parcels           DonationParcel[]
+  milestones        MerchantMilestone[]
+  repairClaims      RepairClaim[]        @relation("plumberPartner")
+  collectionCentres CollectionCentre[]
+}
+
+model CollectionCentre {
+  id           String   @id @default(cuid())
+  partnerId    String
+  partner      Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  name         String
+  address      String
+  locality     String
+  lat          Float?
+  lng          Float?
+  openHours    String?
+  contactPhone String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([partnerId])
 }
 
 model Location {
@@ -399,21 +472,35 @@ model HouseholdMember {
 }
 
 model RepairClaim {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id])
-  householdId  String?
-  household    Household? @relation(fields: [householdId], references: [id])
-  leakCaseId   String?
-  evidenceUrl  String
-  evidenceHash String
-  invoiceUrl   String?
-  status       String    @default("PENDING") // PENDING | CONFIRMED | REJECTED | EXPIRED
-  rewardedOnce Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id                 String     @id @default(cuid())
+  userId             String
+  user               User       @relation(fields: [userId], references: [id])
+  householdId        String?
+  household          Household? @relation(fields: [householdId], references: [id])
+  leakCaseId         String?
+  plumberPartnerId   String?
+  plumberPartner     Partner?   @relation("plumberPartner", fields: [plumberPartnerId], references: [id])
+  assignedPlumberId  String?
+  assignedPlumber    User?      @relation("plumberAssigned", fields: [assignedPlumberId], references: [id])
+  repairStage        String     @default("REQUESTED") // REQUESTED | ACCEPTED | VISITED | REPAIRED | VERIFIED
+  address            String?    // Exact address (revealed to plumber upon acceptance)
+  locality           String?
+  category           String?    // TAP | PIPE | METER | TANK | TOILET
+  notes              String?
+  beforePhotoUrl     String?
+  afterPhotoUrl      String?
+  meterReading       Float?
+  evidenceUrl        String
+  evidenceHash       String
+  invoiceUrl         String?
+  status             String     @default("PENDING") // PENDING | CONFIRMED | REJECTED | EXPIRED
+  rewardedOnce       Boolean    @default(false)
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   @@index([evidenceHash])
+  @@index([plumberPartnerId])
+  @@index([assignedPlumberId])
 }
 
 // ─────────────────────────────────────────────

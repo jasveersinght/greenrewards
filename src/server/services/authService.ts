@@ -14,29 +14,55 @@ export function normalizeEmail(email: string): string {
   const demoAliases: Record<string, string> = {
     'user@demo.com': 'user@demo',
     'user2@demo.com': 'user2@demo',
-    'merchant@demo.com': 'merchant@demo',
+    'shop@demo.com': 'shop@demo',
+    'merchant@demo.com': 'shop@demo',
+    'merchant@demo': 'shop@demo',
+    'plumber@demo.com': 'plumber@demo',
+    'ngo@demo.com': 'ngo@demo',
+    'foodpartner@demo.com': 'ngo@demo',
+    'foodpartner@demo': 'ngo@demo',
     'restaurant@demo.com': 'restaurant@demo',
     'reviewer@demo.com': 'reviewer@demo',
     'maintenance@demo.com': 'maintenance@demo',
-    'foodpartner@demo.com': 'foodpartner@demo',
     'sponsor@demo.com': 'sponsor@demo',
     'admin@demo.com': 'admin@demo',
   }
   return demoAliases[clean] || clean
 }
 
-export async function getDevOtp(rawEmail: string): Promise<string | undefined> {
-  const email = normalizeEmail(rawEmail)
-  return devOtpStore.get(email)
+export async function resolveIdentifier(identifier: string): Promise<{ email: string; user?: User | null }> {
+  const clean = identifier.trim().toLowerCase()
+  if (clean.includes('@')) {
+    const email = normalizeEmail(clean)
+    const user = await prisma.user.findUnique({ where: { email } })
+    return { email, user }
+  }
+  // Try username
+  const user = await prisma.user.findUnique({ where: { username: clean } })
+  if (user) {
+    return { email: user.email, user }
+  }
+  return { email: clean, user: null }
+}
+
+export async function getDevOtp(rawEmailOrUsername: string): Promise<string | undefined> {
+  const resolved = await resolveIdentifier(rawEmailOrUsername)
+  return devOtpStore.get(resolved.email)
 }
 
 export async function sendOtp(
-  rawEmail: string,
-  profile?: { displayName?: string; locality?: string }
-): Promise<{ sent: boolean; cooldownRemaining?: number; isExistingUser?: boolean }> {
-  const email = normalizeEmail(rawEmail)
+  rawIdentifier: string,
+  profile?: { displayName?: string; locality?: string; username?: string }
+): Promise<{ sent: boolean; cooldownRemaining?: number; isExistingUser?: boolean; resolvedEmail?: string; error?: string }> {
+  const { email, user: existingByUsername } = await resolveIdentifier(rawIdentifier)
+
+  // If user entered username without @ and user doesn't exist
+  if (!rawIdentifier.includes('@') && !existingByUsername) {
+    return { sent: false, error: 'Account not found for username' }
+  }
+
   // Upsert user
-  let user = await prisma.user.findUnique({ where: { email } })
+  let user = existingByUsername || (await prisma.user.findUnique({ where: { email } }))
   const isExistingUser = !!user && !!user.displayName
 
   if (!user) {
@@ -45,6 +71,7 @@ export async function sendOtp(
         email,
         displayName: profile?.displayName || null,
         locality: profile?.locality || null,
+        username: profile?.username || null,
         city: 'Chennai',
       },
     })
@@ -54,6 +81,7 @@ export async function sendOtp(
       data: {
         displayName: profile.displayName,
         locality: profile.locality || user.locality,
+        username: profile.username || user.username,
       },
     })
   }
@@ -68,7 +96,7 @@ export async function sendOtp(
     const cooldownRemaining = Math.ceil(
       (60000 - (Date.now() - lastOtp.createdAt.getTime())) / 1000
     )
-    return { sent: false, cooldownRemaining }
+    return { sent: false, cooldownRemaining, resolvedEmail: email }
   }
 
   const otp = generateOtp()
@@ -88,8 +116,7 @@ export async function sendOtp(
     devOtpStore.set(email, otp)
   }
 
-  // TODO: send real email via SMTP when configured
-  return { sent: true, isExistingUser }
+  return { sent: true, isExistingUser, resolvedEmail: email }
 }
 
 export interface VerifyOtpResult {
@@ -99,12 +126,12 @@ export interface VerifyOtpResult {
 }
 
 export async function verifyOtpCode(
-  rawEmail: string,
+  rawIdentifier: string,
   code: string,
-  profile?: { displayName?: string; locality?: string }
+  profile?: { displayName?: string; locality?: string; username?: string }
 ): Promise<VerifyOtpResult> {
-  const email = normalizeEmail(rawEmail)
-  let user = await prisma.user.findUnique({ where: { email } })
+  const { email, user: existingByUsername } = await resolveIdentifier(rawIdentifier)
+  let user = existingByUsername || (await prisma.user.findUnique({ where: { email } }))
   if (!user) return { success: false, error: 'NOT_FOUND' }
 
   const attempt = await prisma.otpAttempt.findFirst({
@@ -137,21 +164,74 @@ export async function verifyOtpCode(
   })
 
   // If profile info supplied and not set, update user
+  const updateData: Record<string, unknown> = {}
   if (profile?.displayName && !user.displayName) {
+    updateData.displayName = profile.displayName.trim()
+    updateData.locality = profile.locality || user.locality || 'T. Nagar'
+    updateData.city = 'Chennai'
+  }
+  if (profile?.username && !user.username) {
+    updateData.username = profile.username.trim().toLowerCase()
+  }
+
+  if (Object.keys(updateData).length > 0) {
     user = await prisma.user.update({
       where: { id: user.id },
-      data: {
-        displayName: profile.displayName.trim(),
-        locality: profile.locality || user.locality || 'T. Nagar',
-        city: 'Chennai',
-      },
+      data: updateData,
     })
+  }
+
+  // Ensure default username if user has none
+  if (!user.username) {
+    const baseName = user.email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '')
+    const defaultUsername = `user.${baseName || user.id.slice(0, 6)}`
+    try {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { username: defaultUsername },
+      })
+    } catch {
+      // Keep existing user if username update fails
+    }
+  }
+
+  // Check BOOTSTRAP_ADMIN_EMAIL
+  const bootstrapAdmin = process.env.BOOTSTRAP_ADMIN_EMAIL?.trim().toLowerCase()
+  if (bootstrapAdmin && user.email.toLowerCase() === bootstrapAdmin) {
+    const adminCount = await prisma.roleGrant.count({
+      where: { role: 'ADMIN', revokedAt: null },
+    })
+    if (adminCount === 0) {
+      await prisma.roleGrant.create({
+        data: {
+          userId: user.id,
+          role: 'ADMIN',
+          grantedBy: 'BOOTSTRAP',
+        },
+      })
+      if (!user.username?.startsWith('admin')) {
+        const staffUsername = `admin.${user.username || 'bootstrap'}`
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: { username: staffUsername },
+        })
+      }
+      await prisma.auditLog.create({
+        data: {
+          actorId: user.id,
+          action: 'BOOTSTRAP_ADMIN_GRANTED',
+          refType: 'User',
+          refId: user.id,
+          meta: JSON.stringify({ email: user.email }),
+        },
+      }).catch(() => {})
+    }
   }
 
   // Clean dev store
   devOtpStore.delete(email)
 
-  return { success: true, user }
+  return { success: true, user: user ?? undefined }
 }
 
 export async function getUserWithRoles(userId: string) {

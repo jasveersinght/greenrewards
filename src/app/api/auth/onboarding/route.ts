@@ -30,19 +30,28 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // Ensure USER role grant exists
+  // Ensure CITIZEN role grant exists
   const existingGrant = await prisma.roleGrant.findFirst({
-    where: { userId: user.id, role: 'USER', partnerId: null },
+    where: { userId: user.id, role: 'CITIZEN', partnerId: null },
   })
   if (!existingGrant) {
     await prisma.roleGrant.create({
-      data: { userId: user.id, role: 'USER', grantedBy: 'system' },
+      data: { userId: user.id, role: 'CITIZEN', grantedBy: 'system' },
     })
   }
 
   // Re-issue session with displayName
-  const newPayload: SessionPayload = { ...session, displayName: user.displayName }
-  const token = await createSession(newPayload)
+  const token = await createSession(
+    {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      displayName: user.displayName,
+    },
+    session.roles,
+    session.partnerIds,
+    session.activeRole
+  )
 
   const response = NextResponse.json({ user })
   setSessionCookie(response, token)

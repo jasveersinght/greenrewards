@@ -11,7 +11,7 @@ export async function GET(
 
   // Merchant partner scope if user is a merchant
   let merchantPartnerId: string | null | undefined = undefined
-  if (session?.roles.includes('MERCHANT') && !session.roles.includes('ADMIN')) {
+  if (session?.roles.includes('SHOPKEEPER') && !session.roles.includes('ADMIN')) {
     merchantPartnerId = session.partnerIds[0] ?? null
   }
 

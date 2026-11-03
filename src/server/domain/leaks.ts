@@ -46,7 +46,7 @@ export interface LeakBountyRules {
 
 /**
  * Extract bounty rules from campaign reward rule JSON.
- * Defaults to ₹100 on acceptance, ₹150 on verified repair.
+ * Defaults to 50 GP on acceptance, 100 GP on verified repair.
  */
 export function parseLeakBounties(rewardRuleJson?: string | null): LeakBountyRules {
   if (!rewardRuleJson) {

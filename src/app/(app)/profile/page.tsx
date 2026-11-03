@@ -113,7 +113,7 @@ export default async function ProfilePage() {
               Municipal Admin Portal
             </h4>
             <p className="text-slate-500 text-xs mt-0.5">
-              Review leak bounties, sponsor budgets, and audit trail.
+              Review leak reports, sponsor budgets, and audit trail.
             </p>
           </div>
           <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-rose-600 transition-transform group-hover:translate-x-1" />

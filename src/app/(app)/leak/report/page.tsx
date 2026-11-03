@@ -243,7 +243,7 @@ export default function ReportLeakPage() {
           ) : (
             <>
               <span>🚀</span>
-              <span>Submit Report &amp; Claim ₹100 Bounty</span>
+              <span>Submit Report &amp; Claim 50 Green Points</span>
             </>
           )}
         </button>

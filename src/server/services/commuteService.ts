@@ -153,7 +153,7 @@ export const commuteService = {
 
   /**
    * Reviewer adjudicates a commute ticket submission.
-   * If approving causes user to hit target journeys (e.g. 5 trips), awards ₹100 wallet reward.
+   * If approving causes user to hit target journeys (e.g. 5 trips), awards +25 GP streak bonus points.
    */
   async reviewTicket(
     reviewerId: string,

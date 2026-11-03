@@ -10,6 +10,8 @@ import {
 const DEFAULT_LAT = 12.8231
 const DEFAULT_LNG = 80.0444
 
+import { SECTION_REWARD_LABELS } from '@/server/domain/pointsConfig'
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const lat = parseFloat(url.searchParams.get('lat') ?? `${DEFAULT_LAT}`)
@@ -56,19 +58,19 @@ export async function GET(req: NextRequest) {
       if (partner?.type === 'SHOP') {
         section = 'REUSE'
         actionUrl = offer ? `/reuse/${offer.id}` : '/reuse'
-        rewardText = offer ? offer.rewardText : 'Stamp Card Rewards'
+        rewardText = SECTION_REWARD_LABELS.REUSE
       } else if (partner?.type === 'RESTAURANT' || partner?.type === 'FOOD_PARTNER') {
         section = 'FOOD'
         actionUrl = '/food'
-        rewardText = 'Surplus Food Rescue & Cashback'
+        rewardText = SECTION_REWARD_LABELS.FOOD
       } else if (partner?.type === 'AUTHORITY') {
         section = 'LEAK'
         actionUrl = '/leak'
-        rewardText = 'Public Water Leak Bounties'
+        rewardText = SECTION_REWARD_LABELS.LEAK
       } else if (partner?.type === 'OPERATOR') {
         section = 'COMMUTE'
         actionUrl = '/commute'
-        rewardText = 'Metro & Bus Journey Rewards'
+        rewardText = SECTION_REWARD_LABELS.COMMUTE
       }
 
       const distanceMeters = haversineDistance(lat, lng, loc.lat, loc.lng)

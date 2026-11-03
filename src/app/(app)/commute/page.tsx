@@ -192,7 +192,7 @@ export default function CommutePage() {
               Green Commute
             </h1>
             <p className="text-slate-600 text-sm mt-1">
-              Ride Chennai Metro, MTC buses, or suburban rail to complete the 5-trip challenge and earn cash.
+              Ride Chennai Metro, MTC buses, or suburban rail to complete the 5-trip challenge and earn Green Points.
             </p>
           </div>
 
@@ -244,7 +244,7 @@ export default function CommutePage() {
               5-Trip Green Commute Challenge
             </h2>
             <p className="text-slate-600 text-sm mt-1 max-w-2xl leading-relaxed">
-              Take 5 trips on Chennai Metro Rail, suburban EMU trains, or MTC buses to earn ₹100 cash voucher credited straight to your wallet.
+              Take 5 trips on Chennai Metro Rail, suburban EMU trains, or MTC buses: 5 pts per trip · +25 for 5 trips/week.
             </p>
 
             {/* Progress Bar & Details */}
@@ -266,7 +266,7 @@ export default function CommutePage() {
               <div className="flex justify-between items-center text-xs text-slate-500 pt-1">
                 <span>Daily limit: {selectedChallenge.dailyLimit} trip/day</span>
                 {selectedChallenge.progress.completed ? (
-                  <span className="text-emerald-700 font-bold">🎉 Challenge Complete! ₹100 Credited</span>
+                  <span className="text-emerald-700 font-bold">🎉 Challenge Complete! +25 Streak Points Credited</span>
                 ) : (
                   <span className="font-semibold text-purple-700">{selectedChallenge.progress.remaining} trips needed</span>
                 )}

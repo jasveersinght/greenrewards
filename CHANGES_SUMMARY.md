@@ -4,9 +4,9 @@
 
 | Metric | Before Upgrade | After Upgrade | Delta |
 | :--- | :--- | :--- | :--- |
-| **Test Suites (Vitest)** | 12 files passed | **16 files passed** | **+4 suites** |
-| **Total Unit Tests** | 102 passed, 0 failed | **125 passed, 0 failed** | **+23 tests** |
-| **Production Routes** | 55 compiled | **66 compiled** | **+11 routes** |
+| **Test Suites (Vitest)** | 12 files passed | **17 files passed** | **+5 suites** |
+| **Total Unit Tests** | 102 passed, 0 failed | **128 passed, 0 failed** | **+26 tests** |
+| **Production Routes** | 55 compiled | **67 compiled** | **+12 routes** |
 | **TypeScript / Build Errors**| 0 | **0** | Clean |
 
 ---
@@ -69,6 +69,41 @@
 - Added `allowedDevOrigins` in `next.config.ts` allowing `192.168.1.11` and `localhost` so Next.js 16 HMR does not block cross-origin requests.
 - Relaxed auth email validation to support `@demo` handles and alias `@demo.com` seamlessly to seeded accounts.
 - Added 1-Click Quick Demo Sign-In and dev auto-fill OTP buttons on `/login`.
+
+### Step 8: Elimination of All Rupee Rewards & Source-of-Truth Single Point Engine
+- **Single Source of Truth (`src/server/domain/pointsConfig.ts`)**:
+  - Centralized canonical reward text and badges:
+    - Reuse & Earn: `"10 pts per stamp · +40 bonus at 5 stamps"`
+    - Leak Hunter: `"50 pts accepted · +100 when repaired"`
+    - Food Rescue: `"15 pts per pickup"`
+    - Green Commute: `"5 pts per trip · +25 for 5 trips/week"`
+    - Electricity: `"150 pts for 10% less vs your own bills"`
+    - Save Water: `"75 pts per verified repair"`
+  - Enforced zero tolerance for monetary phrases: replaced "city bounties" with "earn Green Points", "transit rewards" with "Green Points", and all rupee bonus/credit wording with Green Points.
+- **Strict Allowlist for Rupee Symbols (`₹`)**:
+  - Rupee symbols are strictly forbidden on challenge badges, reward labels, and user wallet balances.
+  - ₹ is allowed exclusively for genuine commercial values:
+    1. Food Rescue item discounted and original pricing (`₹49`, `₹60`, etc.).
+    2. Utility electricity bill charges and calculated bill rupees saved (`₹102`, TANGEDCO bills).
+    3. Rewards Store partner coupon face values and minimum spend thresholds (`₹30 off on ₹300+`).
+    4. Admin CSR sponsor budget amounts.
+- **Vitest Guard Regression Test (`tests/unit/noRupeeGuard.test.ts`)**:
+  - Scans `src/` and `prisma/seed.ts` for `₹`, `Rs`, `INR`, and `rupee`.
+  - Automatically fails if an un-allowlisted reward string or hardcoded rupee bonus is detected.
+  - Renders and validates home dashboard active challenge copy.
+- **Visual Browser Verification & Automated Screenshots**:
+  - Script: `scripts/capture_screenshots.js` (using Playwright).
+  - Captured full-page screenshots to `docs/screenshots/no-rupees/`:
+    - `01-home.png`
+    - `02-reuse.png`
+    - `03-leak.png`
+    - `04-food.png`
+    - `05-commute.png`
+    - `06-electricity.png`
+    - `07-water.png`
+    - `08-rewards.png`
+    - `09-wallet.png`
+  - Visually confirmed zero rupee symbols appear on any reward badge, challenge card, or wallet portfolio card.
 
 ---
 

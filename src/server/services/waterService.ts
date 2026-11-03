@@ -150,7 +150,7 @@ export const waterService = {
 
   /**
    * Reviewer adjudicates a water repair claim.
-   * If confirmed, awards ₹250 (25000 paise) voucher / wallet reward to citizen.
+   * If confirmed, awards 75 Green Points to citizen.
    */
   async reviewRepairClaim(
     reviewerId: string,

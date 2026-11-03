@@ -27,10 +27,10 @@ export default async function LeakCaseDetailPage({
 
   const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
     SUBMITTED: { label: 'Under Review', badge: 'bg-amber-50 text-amber-800 border-amber-200' },
-    ACCEPTED: { label: 'Accepted · ₹100 Credited', badge: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+    ACCEPTED: { label: 'Accepted · 50 GP Credited', badge: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
     ASSIGNED: { label: 'Maintenance Dispatched', badge: 'bg-blue-50 text-blue-800 border-blue-200' },
     REPAIRED: { label: 'Repaired · Awaiting Closure', badge: 'bg-purple-50 text-purple-800 border-purple-200' },
-    VERIFIED_CLOSED: { label: 'Verified Closed · ₹250 Rewarded', badge: 'bg-emerald-100 text-emerald-900 border-emerald-300' },
+    VERIFIED_CLOSED: { label: 'Verified Closed · 150 GP Rewarded', badge: 'bg-emerald-100 text-emerald-900 border-emerald-300' },
     REJECTED: { label: 'Rejected', badge: 'bg-rose-50 text-rose-800 border-rose-200' },
     NEEDS_INFO: { label: 'Needs Info', badge: 'bg-orange-50 text-orange-800 border-orange-200' },
   }
@@ -78,7 +78,7 @@ export default async function LeakCaseDetailPage({
             >
               <p className="text-[11px] uppercase tracking-wider text-slate-500">Tier 1: Accepted</p>
               <p className="font-display text-lg font-bold mt-0.5">
-                {isAccepted ? '₹100 Paid ✓' : '₹100 Pending'}
+                {isAccepted ? '50 GP Credited ✓' : '50 GP Pending'}
               </p>
             </div>
 
@@ -91,7 +91,7 @@ export default async function LeakCaseDetailPage({
             >
               <p className="text-[11px] uppercase tracking-wider text-slate-500">Tier 2: Verified Closed</p>
               <p className="font-display text-lg font-bold mt-0.5">
-                {isVerifiedClosed ? '₹150 Bonus ✓' : '₹150 Bonus'}
+                {isVerifiedClosed ? '+100 GP Bonus ✓' : '+100 GP on Repair'}
               </p>
             </div>
           </div>

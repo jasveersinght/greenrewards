@@ -34,7 +34,6 @@ export interface BillPredictionResult {
     target10PercentKwh: number;
     potentialSavingsRupees: number;
     greenRewardBonusPoints: number;
-    greenRewardBonusRupees?: number;
   };
   recommendations: Array<{
     title: string;
@@ -100,7 +99,7 @@ export function predictHouseholdBill(input: BillPredictionInput): BillPrediction
   const adjustedBill = Math.round(rawBill * multiplier * 100) / 100;
 
   // Inverse tariff curve for Chennai/TANGEDCO domestic tiering
-  // Average effective rate ~ ₹5.20/kWh for domestic tier
+  // Average effective rate ~ 5.20 per kWh for domestic tier
   const predictedKwh = Math.round((adjustedBill / 5.25) * 10) / 10;
   const target10PercentKwh = Math.round(predictedKwh * 0.9 * 10) / 10;
   const potentialSavingsRupees = Math.round(adjustedBill * 0.1 * 100) / 100;
@@ -164,7 +163,6 @@ export function predictHouseholdBill(input: BillPredictionInput): BillPrediction
       target10PercentKwh,
       potentialSavingsRupees,
       greenRewardBonusPoints: 150,
-      greenRewardBonusRupees: 200,
     },
     recommendations,
     modelAccuracy: {

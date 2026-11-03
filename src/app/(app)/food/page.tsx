@@ -129,7 +129,7 @@ export default function FoodPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to complete mission');
-      setActionMsg('🌟 Parcel delivered! ₹50 volunteer bounty credited to your wallet.');
+      setActionMsg('🌟 Parcel delivered! 15 Green Points credited to your wallet.');
       fetchData();
     } catch (err: any) {
       alert(err.message);
@@ -374,7 +374,7 @@ export default function FoodPage() {
                   </div>
 
                   <div className="mt-5 pt-3 border-t border-slate-100 flex justify-between items-center">
-                    <span className="text-xs text-emerald-800 font-bold">Bounty: ₹50 Wallet Credit</span>
+                    <span className="text-xs text-emerald-800 font-bold">Reward: 15 Green Points</span>
 
                     {!parcel.mission ? (
                       <button

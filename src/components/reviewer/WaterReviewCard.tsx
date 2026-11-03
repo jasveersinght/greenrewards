@@ -53,7 +53,7 @@ export default function WaterReviewCard({ claim }: WaterReviewCardProps) {
               : 'bg-rose-50 text-rose-700 border border-rose-200'
           }`}
         >
-          {decision === 'CONFIRMED' ? '✓ Verified (₹250 Paid)' : '✕ Rejected'}
+          {decision === 'CONFIRMED' ? '✓ Verified (75 GP Awarded)' : '✕ Rejected'}
         </span>
       </div>
     );
@@ -80,7 +80,7 @@ export default function WaterReviewCard({ claim }: WaterReviewCardProps) {
           <div className="flex items-center justify-between">
             <span className="font-bold text-slate-900">Plumbing Repair</span>
             <span className="text-[10px] text-cyan-700 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded-full font-semibold">
-              ₹250 Bounty
+              +75 GP Repair
             </span>
           </div>
           <p className="text-slate-600 text-[11px] mt-1">
@@ -107,7 +107,7 @@ export default function WaterReviewCard({ claim }: WaterReviewCardProps) {
           onClick={() => handleReview('CONFIRMED')}
           className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-cyan-600 text-white hover:bg-cyan-700 disabled:opacity-50 transition cursor-pointer shadow-xs"
         >
-          Verify &amp; Issue ₹250 ✓
+          Verify &amp; Award 75 GP ✓
         </button>
       </div>
     </div>

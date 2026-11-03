@@ -35,7 +35,7 @@ interface PredictionData {
   efficiencyChallenge: {
     target10PercentKwh: number;
     potentialSavingsRupees: number;
-    greenRewardBonusRupees: number;
+    greenRewardBonusPoints?: number;
   };
   recommendations: Array<{
     title: string;
@@ -280,16 +280,16 @@ export default function BillPredictorCard() {
                 Target Monthly Cap: {prediction.efficiencyChallenge.target10PercentKwh} kWh
               </h3>
               <p className="text-slate-600 text-xs sm:text-sm mt-1 leading-relaxed">
-                Reduce your bill to below ₹{(prediction.predictedBillRupees * 0.9).toFixed(0)} to claim a ₹{prediction.efficiencyChallenge.greenRewardBonusRupees} Green Rewards wallet bonus!
+                Reduce your bill to below ₹{(prediction.predictedBillRupees * 0.9).toFixed(0)} to claim a {prediction.efficiencyChallenge.greenRewardBonusPoints || 150} Green Points bonus!
               </p>
             </div>
 
             <div className="bg-white rounded-xl p-4 border border-emerald-200 shadow-2xs text-center shrink-0 w-full sm:w-auto">
-              <span className="text-xs font-semibold text-slate-500 block">Combined Citizen Value</span>
-              <span className="font-display text-3xl font-bold text-emerald-700 block mt-0.5">
-                ₹{(prediction.efficiencyChallenge.potentialSavingsRupees + prediction.efficiencyChallenge.greenRewardBonusRupees).toFixed(0)}
+              <span className="text-xs font-semibold text-slate-500 block">Bill Savings &amp; Points</span>
+              <span className="font-display text-2xl font-bold text-emerald-700 block mt-0.5">
+                ₹{prediction.efficiencyChallenge.potentialSavingsRupees.toFixed(0)} + {prediction.efficiencyChallenge.greenRewardBonusPoints || 150} GP
               </span>
-              <span className="text-[11px] text-slate-400 block mt-0.5">Bill Savings + ₹200 Eco Bonus</span>
+              <span className="text-[11px] text-slate-400 block mt-0.5">Bill Savings + 150 GP Challenge</span>
             </div>
           </div>
 

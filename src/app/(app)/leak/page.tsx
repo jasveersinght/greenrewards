@@ -33,10 +33,10 @@ export default async function LeakPage() {
 
   const STATUS_CONFIG: Record<string, { label: string; badge: string }> = {
     SUBMITTED: { label: 'Under Review', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
-    ACCEPTED: { label: 'Accepted · ₹100 Paid', badge: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+    ACCEPTED: { label: 'Accepted · 50 GP Credited', badge: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
     ASSIGNED: { label: 'Plumber Assigned', badge: 'bg-blue-50 text-blue-700 border-blue-200' },
     REPAIRED: { label: 'Repaired · Verifying', badge: 'bg-purple-50 text-purple-700 border-purple-200' },
-    VERIFIED_CLOSED: { label: 'Verified Closed · ₹250 Total', badge: 'bg-emerald-100 text-emerald-900 border-emerald-300' },
+    VERIFIED_CLOSED: { label: 'Verified Closed · 150 GP Total', badge: 'bg-emerald-100 text-emerald-900 border-emerald-300' },
     REJECTED: { label: 'Rejected', badge: 'bg-rose-50 text-rose-700 border-rose-200' },
     NEEDS_INFO: { label: 'Needs Info', badge: 'bg-orange-50 text-orange-700 border-orange-200' },
   }
@@ -61,13 +61,13 @@ export default async function LeakPage() {
         </Link>
         <div className="flex items-center gap-2 text-xs font-semibold text-blue-700 bg-blue-50 w-fit px-3 py-1 rounded-full border border-blue-200 mb-2">
           <Droplets className="w-3.5 h-3.5" />
-          <span>Civic Water Bounties</span>
+          <span>Civic Water Protection</span>
         </div>
         <h1 className="font-display text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">
           Leak Hunter
         </h1>
         <p className="text-slate-600 text-sm mt-1">
-          Report public water pipeline leaks across Chennai, track repairs, and earn verified civic bounties.
+          Report public water pipeline leaks across Chennai, track repairs, and earn Green Points.
         </p>
       </div>
 
@@ -98,16 +98,16 @@ export default async function LeakPage() {
           </div>
         </div>
 
-        {/* Two-Tier Bounty Breakdown */}
+        {/* Two-Tier Reward Breakdown */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
           <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-2xs">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tier 1: Review</span>
-            <p className="font-display text-2xl font-bold text-emerald-700 mt-1">₹100 Bounty</p>
+            <p className="font-display text-2xl font-bold text-emerald-700 mt-1">50 pts accepted</p>
             <p className="text-xs text-slate-500 mt-0.5">Credited when municipal reviewers accept valid report</p>
           </div>
           <div className="bg-white border border-slate-200/80 rounded-xl p-4 shadow-2xs">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tier 2: Verified Fixed</span>
-            <p className="font-display text-2xl font-bold text-emerald-700 mt-1">₹150 Bonus</p>
+            <p className="font-display text-2xl font-bold text-emerald-700 mt-1">+100 when repaired</p>
             <p className="text-xs text-slate-500 mt-0.5">Credited when maintenance confirms permanent fix</p>
           </div>
         </div>

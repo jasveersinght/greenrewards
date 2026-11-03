@@ -1,13 +1,14 @@
 'use client'
 
 import React from 'react'
+import { POINTS_CONFIG } from '@/server/domain/pointsConfig'
 
 interface StampCardProps {
   offerName: string
   partnerName: string
   currentStamps: number
   stampsNeeded: number
-  voucherValuePaise: number
+  voucherValuePaise?: number
   isSimulated?: boolean
   completedAt?: Date | string | null
 }
@@ -17,12 +18,11 @@ export default function StampCard({
   partnerName,
   currentStamps,
   stampsNeeded,
-  voucherValuePaise,
+  voucherValuePaise = 0,
   isSimulated = false,
   completedAt,
 }: StampCardProps) {
   const percent = Math.min(100, Math.round((currentStamps / stampsNeeded) * 100))
-  const voucherRupees = (voucherValuePaise / 100).toFixed(0)
 
   return (
     <div className="bg-white border border-emerald-200/80 rounded-2xl p-5 shadow-xs relative overflow-hidden font-body">
@@ -50,7 +50,7 @@ export default function StampCard({
 
         <div className="text-right shrink-0">
           <span className="px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-xs rounded-full inline-block">
-            ₹{voucherRupees} Voucher
+            +{POINTS_CONFIG.EARNING.REUSE_CARD_BONUS} GP Bonus
           </span>
         </div>
       </div>

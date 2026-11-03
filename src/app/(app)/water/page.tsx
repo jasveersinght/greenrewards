@@ -119,7 +119,7 @@ export default function WaterPage() {
       setShowClaimModal(false);
       setEvidenceUrl('');
       setInvoiceUrl('');
-      setFeedback('🎉 Repair claim submitted! Reviewer will verify and release your ₹250 voucher.');
+      setFeedback('🎉 Repair claim submitted! Reviewer will verify and release your 75 Green Points.');
       fetchData();
     } catch (err: any) {
       setError(err.message);
@@ -183,7 +183,7 @@ export default function WaterPage() {
               Save Water
             </h1>
             <p className="text-slate-600 text-sm mt-1">
-              Household consumption tracking &amp; verified plumbing leak repair bounties.
+              Household consumption tracking &amp; verified plumbing leak repair rewards.
             </p>
           </div>
 
@@ -218,7 +218,7 @@ export default function WaterPage() {
       <div className="bg-gradient-to-r from-cyan-50 via-white to-slate-50 border border-cyan-200/80 rounded-2xl p-6 sm:p-8 shadow-xs relative">
         <div className="flex justify-between items-start mb-3">
           <span className="bg-cyan-100 text-cyan-800 border border-cyan-200 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">
-            Home Plumbing Bounty
+            Home Plumbing Repair
           </span>
           <span className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md border border-slate-200 font-medium">
             Chennai Metro Water (Simulated)
@@ -229,7 +229,7 @@ export default function WaterPage() {
           Fixed a Leaking Tap or Pipe?
         </h2>
         <p className="text-slate-600 text-sm mt-1 max-w-2xl leading-relaxed">
-          Fix household drips, upload photo evidence or plumber invoice, and earn a ₹250 repair voucher once confirmed by city reviewers.
+          75 pts per verified repair: fix household drips, upload photo evidence or plumber invoice, and earn 75 Green Points once confirmed by city reviewers.
         </p>
 
         <button
@@ -238,7 +238,7 @@ export default function WaterPage() {
           className="mt-6 px-6 py-3 bg-cyan-700 hover:bg-cyan-600 text-white font-semibold rounded-xl text-xs sm:text-sm transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
         >
           <Camera className="w-4 h-4" />
-          <span>Claim ₹250 Repair Reward</span>
+          <span>Claim 75 Green Points Repair Reward</span>
         </button>
       </div>
 
@@ -287,7 +287,7 @@ export default function WaterPage() {
           <div className="bg-white border border-slate-200/90 rounded-2xl p-8 text-center text-slate-500 text-sm shadow-xs">
             <p className="text-3xl mb-2">🚿</p>
             <p className="font-semibold text-slate-800">No repair claims submitted yet</p>
-            <p className="text-xs text-slate-400 mt-1">Fixed a leaky faucet or flush tank? Submit evidence above to claim ₹250!</p>
+            <p className="text-xs text-slate-400 mt-1">Fixed a leaky faucet or flush tank? Submit evidence above to claim 75 Green Points!</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -319,7 +319,7 @@ export default function WaterPage() {
                       : 'bg-amber-50 text-amber-800 border border-amber-200'
                   }`}
                 >
-                  {claim.status === 'CONFIRMED' ? '✓ ₹250 Awarded' : claim.status}
+                  {claim.status === 'CONFIRMED' ? '✓ 75 GP Awarded' : claim.status}
                 </span>
               </div>
             ))}

@@ -92,7 +92,7 @@ export default async function MerchantDashboardPage() {
                 <p className="text-xs text-slate-500 mt-0.5">{o.rewardText}</p>
               </div>
               <span className="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                {o.stampsNeeded} Stamps = ₹{(o.voucherValuePaise / 100).toFixed(0)}
+                {o.stampsNeeded} Stamps = +40 GP Bonus
               </span>
             </div>
           ))}

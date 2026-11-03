@@ -1,6 +1,7 @@
 import { getSession } from '@/server/session'
 import { prisma } from '@/server/db'
 import { getWalletBalance } from '@/server/services/walletService'
+import { POINTS_CONFIG, SECTION_REWARD_LABELS } from '@/server/domain/pointsConfig'
 import Link from 'next/link'
 import {
   Sparkles,
@@ -17,20 +18,20 @@ const SECTIONS = [
     href: '/reuse',
     title: 'Reuse & Earn',
     emoji: '♻️',
-    description: 'Stamp card rewards for bringing reusable bags & cups at partner cafes.',
+    description: 'Stamp card rewards for bringing reusable bags & cups at partner shops.',
     accent: 'linear-gradient(90deg, #10b981, #059669)',
     color: '#059669',
-    badge: '5 Stamps = ₹20',
+    badge: SECTION_REWARD_LABELS.REUSE,
   },
   {
     id: 'leak',
     href: '/leak',
     title: 'Leak Hunter',
     emoji: '💧',
-    description: 'Report public water leaks across Chennai to earn city bounties.',
+    description: 'Report public water leaks across Chennai to earn Green Points.',
     accent: 'linear-gradient(90deg, #0284c7, #0369a1)',
     color: '#0284c7',
-    badge: 'Up to ₹50 bounty',
+    badge: SECTION_REWARD_LABELS.LEAK,
   },
   {
     id: 'food',
@@ -40,27 +41,27 @@ const SECTIONS = [
     description: 'Reserve surplus food packages from verified local food partners & restaurants.',
     accent: 'linear-gradient(90deg, #d97706, #b45309)',
     color: '#d97706',
-    badge: '100 pts per meal',
+    badge: SECTION_REWARD_LABELS.FOOD,
   },
   {
     id: 'commute',
     href: '/commute',
     title: 'Green Commute',
     emoji: '🚌',
-    description: 'Metro, MTC bus & suburban train 5-trip challenge for transit rewards.',
+    description: 'Metro, MTC bus & suburban train 5-trip challenge to earn Green Points.',
     accent: 'linear-gradient(90deg, #7c3aed, #6d28d9)',
     color: '#7c3aed',
-    badge: '5 trips = ₹100',
+    badge: SECTION_REWARD_LABELS.COMMUTE,
   },
   {
     id: 'electricity',
     href: '/electricity',
     title: 'AI Bill Predictor & Save',
     emoji: '⚡',
-    description: 'Predict electricity bills with our trained ML model & earn rewards for 10% reduction.',
+    description: 'Predict electricity bills with our trained ML model & earn points for 10% reduction.',
     accent: 'linear-gradient(90deg, #ca8a04, #a16207)',
     color: '#ca8a04',
-    badge: 'AI Predictor + ₹200 bonus',
+    badge: SECTION_REWARD_LABELS.ELECTRICITY,
   },
   {
     id: 'water',
@@ -70,13 +71,9 @@ const SECTIONS = [
     description: 'Household water conservation tracking and verified plumber repair rewards.',
     accent: 'linear-gradient(90deg, #0891b2, #0e7490)',
     color: '#0891b2',
-    badge: '₹75 repair credit',
+    badge: SECTION_REWARD_LABELS.WATER,
   },
 ]
-
-function formatPaise(paise: number | bigint): string {
-  return `₹${(Number(paise) / 100).toFixed(2)}`
-}
 
 export default async function HomePage() {
   const session = await getSession()
@@ -100,7 +97,7 @@ export default async function HomePage() {
             Welcome back, {session.displayName?.split(' ')[0] || 'Citizen'}
           </h1>
           <p className="mt-2 text-slate-600 text-sm sm:text-base leading-relaxed">
-            Every green action you take today creates real environmental change. Track your rewards, complete verified challenges, and redeem cash benefits.
+            Every green action you take today creates real environmental change. Track your points, complete verified challenges, and redeem partner coupons.
           </p>
         </div>
 
@@ -123,17 +120,17 @@ export default async function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Available Cash Card */}
+          {/* Available Points Card */}
           <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Available Cash
+                Available Points
               </span>
-              <span className="p-2 rounded-xl bg-emerald-50 text-emerald-700 text-base">💰</span>
+              <span className="p-2 rounded-xl bg-emerald-50 text-emerald-700 text-base">🪙</span>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
               <span className="font-display text-3xl font-bold text-slate-900">
-                {formatPaise(balance.availablePaise)}
+                {balance.availablePoints ?? 0} GP
               </span>
               <span className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5">
                 <TrendingUp className="w-3 h-3" />
@@ -141,7 +138,7 @@ export default async function HomePage() {
               </span>
             </div>
             <p className="mt-2 text-xs text-slate-500">
-              Ready to cashout via UPI or redeem for merchant vouchers
+              Ready to redeem for partner coupons and store discounts
             </p>
           </div>
 
@@ -149,18 +146,18 @@ export default async function HomePage() {
           <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:shadow-md transition-shadow">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Pending Verification
+                Pending Points
               </span>
               <span className="p-2 rounded-xl bg-amber-50 text-amber-700 text-base">⏳</span>
             </div>
             <div className="mt-3 flex items-baseline gap-2">
               <span className="font-display text-3xl font-bold text-slate-900">
-                {formatPaise(balance.pendingPaise)}
+                {balance.pendingPoints ?? 0} GP
               </span>
               <span className="text-xs text-amber-600 font-semibold">Under review</span>
             </div>
             <p className="mt-2 text-xs text-slate-500">
-              Awaiting municipal / partner proof validation
+              Awaiting verification / settlement period
             </p>
           </div>
 
@@ -182,7 +179,7 @@ export default async function HomePage() {
               </span>
             </div>
             <p className="mt-2 text-xs text-slate-500">
-              Earn 5 stamps to unlock instant ₹20 credit bonus
+              Earn 5 stamps to unlock +{POINTS_CONFIG.EARNING.REUSE_CARD_BONUS} bonus points
             </p>
           </div>
         </div>
@@ -205,7 +202,7 @@ export default async function HomePage() {
               </h2>
               <p className="mt-1 text-slate-600 text-xs sm:text-sm max-w-xl">
                 Simulate your power consumption based on room count, AC usage, occupants, and square footage.
-                Beat the predicted consumption by 10% to unlock a <strong>₹200 Eco Bonus</strong> on your TANGEDCO bill.
+                Beat the predicted consumption by 10% to unlock <strong>+{POINTS_CONFIG.EARNING.ELECTRICITY_10PCT_REDUCTION} Green Points</strong>.
               </p>
             </div>
           </div>
@@ -276,10 +273,10 @@ export default async function HomePage() {
           </div>
           <div className="flex-1">
             <h4 className="font-semibold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">
-              Manage Wallet &amp; Vouchers
+              Manage Wallet &amp; Coupons
             </h4>
             <p className="text-slate-500 text-xs mt-0.5">
-              Review transaction ledger, redeem vouchers, and request UPI payouts.
+              Review transaction ledger and redeem partner coupons.
             </p>
           </div>
           <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
@@ -297,7 +294,7 @@ export default async function HomePage() {
               Activity &amp; Impact Feed
             </h4>
             <p className="text-slate-500 text-xs mt-0.5">
-              Track verification progress for leak bounties and commute stamps.
+              Track verification progress for leak reports and commute trips.
             </p>
           </div>
           <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />

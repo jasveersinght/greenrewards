@@ -335,7 +335,7 @@ export default function DashboardPreview() {
                     </tr>
                     <tr>
                       <td className="py-1.5 text-muted-foreground">Yesterday, 4:15 PM</td>
-                      <td className="py-1.5 font-medium text-foreground">Potheri Junction — Public Pipe Leak Bounty</td>
+                      <td className="py-1.5 font-medium text-foreground">Potheri Junction — Public Pipe Leak Report</td>
                       <td className="py-1.5 font-semibold text-emerald-700 font-mono">+50 GP Wallet</td>
                       <td className="py-1.5 text-right">
                         <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 border border-blue-500/20 font-medium">

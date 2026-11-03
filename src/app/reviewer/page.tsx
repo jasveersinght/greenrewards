@@ -60,7 +60,7 @@ export default async function ReviewerQueuePage() {
           <span>Verification Queue</span>
         </h1>
         <p className="text-xs sm:text-sm text-slate-500 mt-1">
-          Evaluate public submissions and award verified citizen bounties across Chennai.
+          Evaluate public submissions and award verified Green Points across Chennai.
         </p>
       </div>
 
@@ -69,13 +69,13 @@ export default async function ReviewerQueuePage() {
         <div className="bg-white border border-amber-200/90 rounded-2xl p-5 shadow-xs">
           <p className="text-xs text-amber-800 uppercase tracking-wider font-bold">Tier 1: Reports</p>
           <p className="font-display text-3xl font-bold text-slate-900 mt-1">{submittedCases.length}</p>
-          <p className="text-xs text-slate-400 mt-0.5">₹100 Bounty per accepted report</p>
+          <p className="text-xs text-slate-400 mt-0.5">50 Green Points per accepted report</p>
         </div>
 
         <div className="bg-white border border-blue-200/90 rounded-2xl p-5 shadow-xs">
           <p className="text-xs text-blue-800 uppercase tracking-wider font-bold">Tier 2: Repairs</p>
           <p className="font-display text-3xl font-bold text-slate-900 mt-1">{repairedCases.length}</p>
-          <p className="text-xs text-slate-400 mt-0.5">₹150 Bounty per verified repair</p>
+          <p className="text-xs text-slate-400 mt-0.5">100 Green Points per verified repair</p>
         </div>
 
         <div className="bg-white border border-purple-200/90 rounded-2xl p-5 shadow-xs">

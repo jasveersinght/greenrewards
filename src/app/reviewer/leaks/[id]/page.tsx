@@ -237,7 +237,7 @@ export default function ReviewerLeakDecisionPage() {
                   onClick={() => handleDecision('APPROVED')}
                   className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl text-sm transition shadow-sm cursor-pointer disabled:opacity-50"
                 >
-                  ✓ Accept Report &amp; Pay ₹100 Bounty
+                  ✓ Accept Report &amp; Award 50 Green Points
                 </button>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -270,7 +270,7 @@ export default function ReviewerLeakDecisionPage() {
                   onClick={handleVerifyRepair}
                   className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl text-sm transition shadow-sm cursor-pointer disabled:opacity-50"
                 >
-                  ✓ Verify Repair &amp; Award ₹150 Bonus
+                  ✓ Verify Repair &amp; Award 100 Green Points
                 </button>
               </div>
             )}

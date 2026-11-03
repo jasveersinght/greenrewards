@@ -34,3 +34,11 @@ All architectural choices and resolutions for ambiguous specifications are recor
 ### 6. Dev Role Switcher
 - **Decision:** Added `POST /api/dev/switch-role` restricted strictly to `process.env.NODE_ENV === 'development' && process.env.ENABLE_DEV_ROLE_SWITCH === 'true'`.
 - **Reasoning:** Enables rapid local demonstration and automated testing across `CITIZEN`, `MERCHANT`, `REVIEWER`, `SPONSOR`, and `ADMIN` personas without compromising production security.
+
+### 7. Reward Labels Single Source of Truth & Zero-Rupee Guard Test
+- **Decision:** Consolidated all challenge and action reward badges and copy into `src/server/domain/pointsConfig.ts` with helper functions (`SECTION_REWARD_LABELS`, `SECTION_REWARD_BADGES`, `formatReward()`).
+- **Reasoning:** Prevents copy drift and ensures all challenge cards (Reuse, Leak Hunter, Food Rescue, Green Commute, Electricity, Water) derive labels strictly from the points configuration.
+- **Rule:** The rupee symbol (`₹`) and monetary terms ("Rs", "INR", "cash", "withdraw", "bounty", "credit") are strictly forbidden on challenge badges, reward labels, and wallet balances. ₹ is permitted ONLY for real consumer prices: food item purchase prices, utility bill amounts, and coupon face values (`faceValueText`).
+- **Guard Test:** Added Vitest unit test `tests/unit/noRupeeGuard.test.ts` scanning `src/` and `prisma/seed.ts` for rupee references, failing on un-allowlisted instances or hardcoded reward amounts.
+- **Next.js 16 Production Build:** Updated `package.json` `"build"` script to use `next build --webpack` to avoid Turbopack CSS worker IPC panic on Windows (`leaflet.css.css` evaluate_webpack_loader child process crash).
+

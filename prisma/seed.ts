@@ -146,9 +146,9 @@ async function main() {
       status: 'ACTIVE',
       startsAt: now,
       endsAt: in60days,
-      description: 'Bring a reusable bag to FreshMart. Earn 1 stamp per visit. 5 stamps = ₹50 voucher.',
+      description: 'Bring a reusable bag to FreshMart: 10 pts per stamp · +40 bonus at 5 stamps.',
       evidenceNeeded: 'Merchant scans your QR at checkout to confirm reusable bag use.',
-      rewardRule: JSON.stringify({ type: 'STAMP_CARD', stampsNeeded: 5, voucherValuePaise: 5000, perUserPerDay: 1 }),
+      rewardRule: JSON.stringify({ type: 'STAMP_CARD', stampsNeeded: 5, bonusPoints: 40, perStampPoints: 10, perUserPerDay: 1 }),
       limits: JSON.stringify({ perUserPerDay: 1, perUserTotal: 50, totalSlots: 5000 }),
       isSimulated: false,
     },
@@ -156,7 +156,7 @@ async function main() {
   })
   await prisma.budget.upsert({
     where: { campaignId: reuseCampaign.id },
-    create: { campaignId: reuseCampaign.id, totalPaise: 1000000 }, // ₹10,000
+    create: { campaignId: reuseCampaign.id, totalPaise: 1000000 },
     update: {},
   })
 
@@ -168,11 +168,11 @@ async function main() {
       partnerId: freshMart.id,
       campaignId: reuseCampaign.id,
       name: 'FreshMart Reusable Bag Stamp',
-      description: 'Use a reusable bag at FreshMart checkout. Earn 1 stamp. 5 stamps = ₹50 voucher.',
-      rewardText: '1 stamp per confirmed purchase with reusable bag',
+      description: 'Use a reusable bag at FreshMart checkout: 10 pts per stamp · +40 bonus at 5 stamps.',
+      rewardText: '10 pts per stamp · +40 bonus at 5 stamps',
       conditions: 'One stamp per day per customer. Reusable item must be used at checkout.',
       stampsNeeded: 5,
-      voucherValuePaise: 5000,
+      voucherValuePaise: 0,
     },
     update: {},
   })
@@ -188,9 +188,9 @@ async function main() {
       status: 'ACTIVE',
       startsAt: now,
       endsAt: in60days,
-      description: 'Report public water leaks in Potheri, Kattankulathur and Guduvancheri. Earn a bounty for accepted reports and a bonus when repaired.',
+      description: 'Report public water leaks in Potheri, Kattankulathur and Guduvancheri: 50 pts accepted · +100 when repaired.',
       evidenceNeeded: 'Photo of the leak + map pin. Public locations only (roads, stations, parks).',
-      rewardRule: JSON.stringify({ acceptedBountyPaise: 10000, verifiedBonusPaise: 15000 }),
+      rewardRule: JSON.stringify({ acceptedPoints: 50, verifiedPoints: 100 }),
       limits: JSON.stringify({ perUserPerDay: 3, perUserTotal: 30, totalSlots: 500 }),
       isSimulated: true,
     },
@@ -198,7 +198,7 @@ async function main() {
   })
   await prisma.budget.upsert({
     where: { campaignId: leakCampaign.id },
-    create: { campaignId: leakCampaign.id, totalPaise: 500000 }, // ₹5,000
+    create: { campaignId: leakCampaign.id, totalPaise: 500000 },
     update: {},
   })
 
@@ -213,9 +213,9 @@ async function main() {
       status: 'ACTIVE',
       startsAt: now,
       endsAt: in30days,
-      description: 'Reserve and pick up surplus food from Annapoorna Kitchen at a discount. Optional ₹30 cashback from EcoBrand.',
+      description: 'Reserve and pick up surplus food from Annapoorna Kitchen at a discount: 15 pts per pickup.',
       evidenceNeeded: 'Confirm pickup code at counter.',
-      rewardRule: JSON.stringify({ cashbackPaise: 3000 }),
+      rewardRule: JSON.stringify({ pickupPoints: 15 }),
       limits: JSON.stringify({ perUserPerDay: 2, perUserTotal: 20, totalSlots: 1000 }),
       isSimulated: false,
     },
@@ -223,7 +223,7 @@ async function main() {
   })
   await prisma.budget.upsert({
     where: { campaignId: foodCampaign.id },
-    create: { campaignId: foodCampaign.id, totalPaise: 800000 }, // ₹8,000
+    create: { campaignId: foodCampaign.id, totalPaise: 800000 },
     update: {},
   })
 
@@ -238,9 +238,9 @@ async function main() {
       status: 'ACTIVE',
       startsAt: now,
       endsAt: in60days,
-      description: 'Reduce your electricity consumption by 10% vs your baseline. Earn ₹200 on admin review.',
+      description: '150 pts for 10% less vs your own bills: reduce your electricity consumption by 10% vs your baseline.',
       evidenceNeeded: 'Three billing periods of data required. Measured via device or bill entry.',
-      rewardRule: JSON.stringify({ reductionPercent: 10, rewardPaise: 20000 }),
+      rewardRule: JSON.stringify({ reductionPercent: 10, rewardPoints: 150 }),
       limits: JSON.stringify({ perUserPerDay: 1, perUserTotal: 1, totalSlots: 300 }),
       isSimulated: true,
     },
@@ -248,7 +248,7 @@ async function main() {
   })
   await prisma.budget.upsert({
     where: { campaignId: electricityCampaign.id },
-    create: { campaignId: electricityCampaign.id, totalPaise: 600000 }, // ₹6,000
+    create: { campaignId: electricityCampaign.id, totalPaise: 600000 },
     update: {},
   })
 
@@ -263,9 +263,9 @@ async function main() {
       status: 'ACTIVE',
       startsAt: now,
       endsAt: in90days,
-      description: 'Get a ₹250 voucher after a household plumbing repair is confirmed by a reviewer.',
+      description: '75 pts per verified repair: household plumbing repair confirmed by a reviewer.',
       evidenceNeeded: 'Upload repair evidence photo and optional plumber invoice. Reviewer verifies.',
-      rewardRule: JSON.stringify({ repairVoucherPaise: 25000 }),
+      rewardRule: JSON.stringify({ repairPoints: 75 }),
       limits: JSON.stringify({ perUserPerDay: 1, perUserTotal: 3, totalSlots: 200 }),
       isSimulated: true,
     },
@@ -273,7 +273,7 @@ async function main() {
   })
   await prisma.budget.upsert({
     where: { campaignId: waterCampaign.id },
-    create: { campaignId: waterCampaign.id, totalPaise: 400000 }, // ₹4,000
+    create: { campaignId: waterCampaign.id, totalPaise: 400000 },
     update: {},
   })
 
@@ -288,9 +288,9 @@ async function main() {
       status: 'COMING_SOON',
       startsAt: new Date('2026-11-01T00:00:00+05:30'),
       endsAt: new Date('2026-11-30T23:59:59+05:30'),
-      description: 'Take 5 metro or bus journeys in November. Submit your tickets for review. Earn ₹100.',
+      description: 'Take 5 metro or bus journeys in November: 5 pts per trip · +25 for 5 trips/week.',
       evidenceNeeded: 'Upload ticket image with journey date and ticket number. One per day, max 5.',
-      rewardRule: JSON.stringify({ targetJourneys: 5, rewardPaise: 10000, dailyLimit: 1 }),
+      rewardRule: JSON.stringify({ targetJourneys: 5, tripPoints: 5, streakPoints: 25, dailyLimit: 1 }),
       limits: JSON.stringify({ perUserPerDay: 1, perUserTotal: 5, totalSlots: 1200 }),
       isSimulated: true,
     },
@@ -298,7 +298,7 @@ async function main() {
   })
   await prisma.budget.upsert({
     where: { campaignId: commuteCampaign.id },
-    create: { campaignId: commuteCampaign.id, totalPaise: 1200000 }, // ₹12,000
+    create: { campaignId: commuteCampaign.id, totalPaise: 1200000 },
     update: {},
   })
 
@@ -384,7 +384,7 @@ async function main() {
       {
         userId: userDemo.id,
         title: '💧 Leak report accepted',
-        body: 'Your leak report near Potheri Bus Stand has been accepted. ₹100 is pending.',
+        body: 'Your leak report near Potheri Bus Stand has been accepted. 50 Green Points is pending settlement.',
       },
     ],
   })
@@ -682,7 +682,7 @@ async function main() {
   console.log('  foodpartner@demo→ Food Partner at GreenHands NGO')
   console.log('  sponsor@demo    → Sponsor at EcoBrand')
   console.log('  admin@demo      → Admin (full access)')
-  console.log('\nAll funders/authorities marked Simulated. Rewards are illustrative (₹ values).')
+  console.log('\nAll funders/authorities marked Simulated. Green Points are non-monetary rewards.')
 }
 
 main()

@@ -58,7 +58,7 @@ export default async function ReusePage() {
           Reuse &amp; Earn
         </h1>
         <p className="text-slate-600 text-sm mt-1">
-          Bring your own bag or cup to partner stores across Chennai, collect stamps, and earn vouchers.
+          Bring your own bag or cup to partner stores across Chennai, collect stamps, and earn Green Points.
         </p>
       </div>
 
@@ -86,8 +86,8 @@ export default async function ReusePage() {
             <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center mb-2">
               <Ticket className="w-5 h-5" />
             </div>
-            <h3 className="font-bold text-slate-900 text-sm">3. Earn Vouchers</h3>
-            <p className="text-slate-500 text-xs mt-1">5 stamps unlock automatic ₹50 cash voucher credit.</p>
+            <h3 className="font-bold text-slate-900 text-sm">3. Earn Points</h3>
+            <p className="text-slate-500 text-xs mt-1">10 pts per stamp · +40 bonus at 5 stamps.</p>
           </div>
         </div>
       </div>
@@ -156,7 +156,7 @@ export default async function ReusePage() {
                     </div>
                     <h3 className="font-display font-bold text-slate-900 text-lg">{offer.name}</h3>
                     <p className="text-slate-500 text-xs mt-1">
-                      {offer.stampsNeeded} stamps unlock ₹{(offer.voucherValuePaise / 100).toFixed(0)} store voucher.
+                      10 pts per stamp · +40 bonus at {offer.stampsNeeded} stamps.
                     </p>
                   </div>
 

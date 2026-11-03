@@ -100,7 +100,7 @@ export default function ElectricityPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to claim reward');
-      setFeedback('🎉 ₹200 Eco Reward successfully credited to your wallet!');
+      setFeedback('🎉 150 Green Points successfully credited to your wallet!');
       fetchData();
     } catch (err: any) {
       setError(err.message);
@@ -196,7 +196,7 @@ export default function ElectricityPage() {
             10% Electricity Reduction Reward
           </h2>
           <p className="text-slate-600 text-sm mt-1 max-w-2xl leading-relaxed">
-            Reduce current billing cycle usage by ≥10% compared to your 3-period historical baseline and earn ₹200 wallet reward.
+            150 pts for 10% less vs your own bills: reduce current billing cycle usage by ≥10% compared to your 3-period historical baseline.
           </p>
 
           <div className="my-6 grid grid-cols-1 sm:grid-cols-3 gap-4 text-center bg-white p-5 rounded-xl border border-slate-200 shadow-2xs">
@@ -227,7 +227,7 @@ export default function ElectricityPage() {
             status.evaluation?.achieved ? (
               status.alreadyClaimed ? (
                 <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center text-xs font-bold text-emerald-800">
-                  ✓ Challenge Reward Claimed! ₹200 credited to your wallet.
+                  ✓ Challenge Reward Claimed! 150 GP credited to your wallet.
                 </div>
               ) : (
                 <button
@@ -236,12 +236,12 @@ export default function ElectricityPage() {
                   onClick={handleClaimReward}
                   className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-md cursor-pointer"
                 >
-                  {claiming ? 'Processing Reward...' : '🎉 Claim ₹200 Energy Reward Now'}
+                  {claiming ? 'Processing Reward...' : '⚡ Claim 150 Green Points Now'}
                 </button>
               )
             ) : (
               <div className="p-4 bg-slate-100 rounded-xl text-center text-xs text-slate-600 font-medium">
-                Target: 10% reduction. Current drop: {status.evaluation?.reductionPercent || 0}%. Keep saving power to unlock the ₹200 bonus!
+                Target: 10% reduction. Current drop: {status.evaluation?.reductionPercent || 0}%. Keep saving power to unlock the 150 pts bonus!
               </div>
             )
           ) : (

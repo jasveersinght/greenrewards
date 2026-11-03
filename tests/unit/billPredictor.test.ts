@@ -46,10 +46,10 @@ describe('Household Energy Bill Predictor (ML Service)', () => {
     expect(winter.seasonalAdjustment.multiplier).toBe(0.90);
   });
 
-  it('computes 10% efficiency challenge target and ₹200 Eco bonus', () => {
+  it('computes 10% efficiency challenge target and 150 GP challenge points', () => {
     const res = predictHouseholdBill(baseInput);
     expect(res.efficiencyChallenge.target10PercentKwh).toBeCloseTo(res.predictedKwh * 0.9, 1);
-    expect(res.efficiencyChallenge.greenRewardBonusRupees).toBe(200);
+    expect(res.efficiencyChallenge.greenRewardBonusPoints).toBe(150);
     expect(res.efficiencyChallenge.potentialSavingsRupees).toBeCloseTo(res.predictedBillRupees * 0.1, 1);
   });
 

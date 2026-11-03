@@ -379,7 +379,7 @@ export const foodService = {
 
   /**
    * Volunteer completes food delivery mission to NGO shelter.
-   * Awards ₹50 (5000 paise) volunteer bounty.
+   * Awards 15 Green Points.
    */
   async completeDeliveryMission(volunteerId: string, missionId: string) {
     return await prisma.$transaction(async (tx) => {
@@ -414,16 +414,16 @@ export const foodService = {
         data: { status: 'DELIVERED' },
       });
 
-      // Award volunteer bounty ₹50 (5000 paise)
+      // Award 15 Green Points to volunteer
       await tx.ledgerEntry.create({
         data: {
           userId: volunteerId,
-          account: 'AVAILABLE',
-          amountPaise: 5000,
+          account: 'USER_PENDING',
+          amountPoints: 15,
           type: 'EARN_PENDING',
           refType: 'FOOD_DELIVERY_MISSION',
           refId: mission.id,
-          note: `Food Rescue Volunteer Mission completed: ${mission.parcel.listing.item} delivered to NGO (₹50 bounty)`,
+          note: `Food Rescue Volunteer Mission completed: ${mission.parcel.listing.item} delivered to NGO (15 points)`,
         },
       });
 

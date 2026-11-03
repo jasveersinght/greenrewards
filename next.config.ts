@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
     '@prisma/adapter-better-sqlite3',
     'bcryptjs',
   ],
+  allowedDevOrigins: [
+    'localhost',
+    '127.0.0.1',
+    '192.168.1.11',
+    '192.168.1.*',
+  ],
 };
 
 export default nextConfig;

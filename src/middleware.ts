@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTokenFromRequest, verifySession } from '@/server/session'
 
-const PUBLIC_PATHS = ['/login', '/signup', '/onboarding', '/sponsor', '/api/auth/send-otp', '/api/auth/verify-otp', '/api/dev/', '/api/electricity/predict']
+const PUBLIC_PATHS = [
+  '/login',
+  '/signup',
+  '/onboarding',
+  '/sponsor',
+  '/rewards',
+  '/api/auth/send-otp',
+  '/api/auth/verify-otp',
+  '/api/auth/quick-login',
+  '/api/auth/me',
+  '/api/auth/logout',
+  '/api/rewards',
+  '/api/dev/',
+  '/api/electricity/predict',
+]
 const ADMIN_PATHS = ['/admin']
 const MERCHANT_PATHS = ['/merchant']
 const REVIEWER_PATHS = ['/reviewer']

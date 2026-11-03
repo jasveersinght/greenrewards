@@ -51,6 +51,28 @@ function LoginForm() {
   const inputRefs = useRef<(HTMLInputElement | null)[]>([])
   const isDev = process.env.NODE_ENV !== 'production'
 
+  async function handleQuickLogin(role: string) {
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/auth/quick-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Quick login failed')
+        return
+      }
+      router.push(data.redirectUrl || '/home')
+    } catch {
+      setError('Connection error. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Fetch current session for informative status without locking out the page
   useEffect(() => {
     fetch('/api/auth/me')
@@ -227,36 +249,126 @@ function LoginForm() {
 
           {/* Mode Tabs: Sign In / Create Account */}
           {step === 'form' && (
-            <div className="flex bg-slate-100/80 p-1 rounded-xl mb-6 border border-slate-200/60">
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('login')
-                  setError('')
-                }}
-                className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
-                  mode === 'login'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('signup')
-                  setError('')
-                }}
-                className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
-                  mode === 'signup'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Create Account
-              </button>
-            </div>
+            <>
+              {/* Quick Demo Access (1-Click) */}
+              <div className="mb-6 p-4 bg-emerald-50/70 border border-emerald-200/90 rounded-2xl">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1.5">
+                    <span>⚡</span>
+                    <span>Quick Demo Access (1-Click)</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full font-semibold">
+                    Instant
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-800/90 mb-3">
+                  Select a pre-configured role to demo instantly without typing or waiting:
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('CITIZEN')}
+                    disabled={loading}
+                    className="flex flex-col items-start p-2.5 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition text-left cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-emerald-800">
+                      <span>👤</span>
+                      <span>Citizen</span>
+                    </div>
+                    <span className="text-[10px] text-emerald-700 font-semibold">500 GP · Store</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('MERCHANT')}
+                    disabled={loading}
+                    className="flex flex-col items-start p-2.5 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition text-left cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-emerald-800">
+                      <span>🏪</span>
+                      <span>Merchant</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500">QR Scan & Stamp</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('ADMIN')}
+                    disabled={loading}
+                    className="flex flex-col items-start p-2.5 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition text-left cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-emerald-800">
+                      <span>⚙️</span>
+                      <span>Admin</span>
+                    </div>
+                    <span className="text-[10px] text-blue-600 font-semibold">Settle · Reversal</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('REVIEWER')}
+                    disabled={loading}
+                    className="flex flex-col items-start p-2.5 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition text-left cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-emerald-800">
+                      <span>🛡️</span>
+                      <span>Reviewer</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500">Audit & Verify</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleQuickLogin('SPONSOR')}
+                    disabled={loading}
+                    className="flex flex-col items-start p-2.5 bg-white hover:bg-emerald-50 border border-emerald-200 rounded-xl transition text-left cursor-pointer group shadow-2xs"
+                  >
+                    <div className="flex items-center gap-1 text-xs font-bold text-slate-800 group-hover:text-emerald-800">
+                      <span>🏢</span>
+                      <span>Sponsor</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500">CSR Dashboard</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 my-4">
+                <div className="h-px bg-slate-200 flex-1" />
+                <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Or use email</span>
+                <div className="h-px bg-slate-200 flex-1" />
+              </div>
+
+              <div className="flex bg-slate-100/80 p-1 rounded-xl mb-6 border border-slate-200/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login')
+                    setError('')
+                  }}
+                  className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+                    mode === 'login'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('signup')
+                    setError('')
+                  }}
+                  className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all cursor-pointer ${
+                    mode === 'signup'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Create Account
+                </button>
+              </div>
+            </>
           )}
 
           {step === 'form' ? (
@@ -408,10 +520,22 @@ function LoginForm() {
 
               {/* Dev OTP Banner */}
               {isDev && devOtp && (
-                <div className="dev-otp-banner" role="status" aria-label="Development OTP">
-                  <p className="mb-1 font-semibold">🛠️ Dev mode — your OTP:</p>
-                  <strong id="dev-otp-value">{devOtp}</strong>
-                  <p className="text-[11px] text-emerald-800 mt-1">This banner is hidden in production</p>
+                <div className="p-3.5 bg-emerald-50 border border-emerald-200/90 rounded-2xl flex items-center justify-between gap-3 shadow-2xs" role="status" aria-label="Development OTP">
+                  <div>
+                    <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider block">🛠️ Dev Code:</span>
+                    <strong id="dev-otp-value" className="text-xl font-mono text-emerald-800 tracking-widest block font-bold">{devOtp}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const digits = devOtp.split('')
+                      setOtp(digits)
+                      handleVerify(devOtp)
+                    }}
+                    className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+                  >
+                    Auto-Fill &amp; Enter →
+                  </button>
                 </div>
               )}
 

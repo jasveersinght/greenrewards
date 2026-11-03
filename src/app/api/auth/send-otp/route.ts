@@ -3,7 +3,10 @@ import { z } from 'zod'
 import { sendOtp } from '@/server/services/authService'
 
 const schema = z.object({
-  email: z.string().email().toLowerCase().trim(),
+  email: z.string().trim().toLowerCase().refine(
+    e => /^[^\s@]+@[^\s@]+$/.test(e),
+    { message: 'Invalid email address' }
+  ),
   displayName: z.string().min(2).max(50).optional(),
   locality: z.string().min(2).max(50).optional(),
   mode: z.enum(['login', 'signup']).optional(),

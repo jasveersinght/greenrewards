@@ -9,14 +9,32 @@ import type { User } from '@/generated/prisma'
 // Dev-only: store last OTP per email for the banner
 const devOtpStore: Map<string, string> = new Map()
 
-export async function getDevOtp(email: string): Promise<string | undefined> {
+export function normalizeEmail(email: string): string {
+  const clean = email.trim().toLowerCase()
+  const demoAliases: Record<string, string> = {
+    'user@demo.com': 'user@demo',
+    'user2@demo.com': 'user2@demo',
+    'merchant@demo.com': 'merchant@demo',
+    'restaurant@demo.com': 'restaurant@demo',
+    'reviewer@demo.com': 'reviewer@demo',
+    'maintenance@demo.com': 'maintenance@demo',
+    'foodpartner@demo.com': 'foodpartner@demo',
+    'sponsor@demo.com': 'sponsor@demo',
+    'admin@demo.com': 'admin@demo',
+  }
+  return demoAliases[clean] || clean
+}
+
+export async function getDevOtp(rawEmail: string): Promise<string | undefined> {
+  const email = normalizeEmail(rawEmail)
   return devOtpStore.get(email)
 }
 
 export async function sendOtp(
-  email: string,
+  rawEmail: string,
   profile?: { displayName?: string; locality?: string }
 ): Promise<{ sent: boolean; cooldownRemaining?: number; isExistingUser?: boolean }> {
+  const email = normalizeEmail(rawEmail)
   // Upsert user
   let user = await prisma.user.findUnique({ where: { email } })
   const isExistingUser = !!user && !!user.displayName
@@ -81,10 +99,11 @@ export interface VerifyOtpResult {
 }
 
 export async function verifyOtpCode(
-  email: string,
+  rawEmail: string,
   code: string,
   profile?: { displayName?: string; locality?: string }
 ): Promise<VerifyOtpResult> {
+  const email = normalizeEmail(rawEmail)
   let user = await prisma.user.findUnique({ where: { email } })
   if (!user) return { success: false, error: 'NOT_FOUND' }
 

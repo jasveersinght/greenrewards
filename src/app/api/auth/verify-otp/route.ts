@@ -5,7 +5,10 @@ import { createSession, setSessionCookie } from '@/server/session'
 import type { SessionPayload } from '@/server/session'
 
 const schema = z.object({
-  email: z.string().email().toLowerCase().trim(),
+  email: z.string().trim().toLowerCase().refine(
+    e => /^[^\s@]+@[^\s@]+$/.test(e),
+    { message: 'Invalid email address' }
+  ),
   code: z.string().length(6).regex(/^\d{6}$/),
   displayName: z.string().min(2).max(50).optional(),
   locality: z.string().min(2).max(50).optional(),

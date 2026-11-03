@@ -7,6 +7,11 @@ interface WaterReviewCardProps {
     id: string;
     evidenceUrl: string;
     invoiceUrl?: string | null;
+    category?: string | null;
+    locality?: string | null;
+    address?: string | null;
+    notes?: string | null;
+    repairStage?: string | null;
     createdAt: Date | string;
     user: {
       displayName: string | null;
@@ -78,14 +83,26 @@ export default function WaterReviewCard({ claim }: WaterReviewCardProps) {
         )}
         <div className="flex-1 min-w-0 text-xs">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-slate-900">Plumbing Repair</span>
+            <span className="font-bold text-slate-900">
+              {claim.category ? `${claim.category} Plumbing Repair` : 'Plumbing Repair'}
+            </span>
             <span className="text-[10px] text-cyan-700 bg-cyan-50 border border-cyan-200 px-2 py-0.5 rounded-full font-semibold">
               +75 GP Repair
             </span>
           </div>
           <p className="text-slate-600 text-[11px] mt-1">
-            Household: {claim.household?.name || 'Private Residence'}
+            Household: {claim.household?.name || 'Private Residence'} · {claim.locality || 'Potheri'}
           </p>
+          {claim.notes && (
+            <p className="text-slate-700 text-[11px] mt-0.5 line-clamp-2 italic">
+              &ldquo;{claim.notes}&rdquo;
+            </p>
+          )}
+          {claim.invoiceUrl && (
+            <p className="text-slate-500 font-mono text-[10px] mt-0.5">
+              Invoice ref: {claim.invoiceUrl}
+            </p>
+          )}
           <p className="text-slate-400 text-[10px] mt-0.5">
             By {claim.user.displayName || claim.user.email} · {new Date(claim.createdAt).toLocaleDateString()}
           </p>

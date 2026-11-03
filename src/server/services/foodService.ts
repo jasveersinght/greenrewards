@@ -201,14 +201,19 @@ export const foodService = {
   },
 
   /**
-   * Merchant confirms pickup via 4-character pickup code.
+   * Merchant confirms pickup via 4-character pickup code or reservation ID.
    */
-  async confirmPickup(merchantPartnerId: string, pickupCode: string) {
+  async confirmPickup(merchantPartnerId: string | null, pickupCode: string, isAdmin: boolean = false) {
     const cleanCode = pickupCode.trim().toUpperCase();
 
     return await prisma.$transaction(async (tx) => {
-      const reservation = await tx.reservation.findUnique({
-        where: { pickupCode: cleanCode },
+      const reservation = await tx.reservation.findFirst({
+        where: {
+          OR: [
+            { pickupCode: cleanCode },
+            { id: cleanCode },
+          ],
+        },
         include: {
           listing: true,
           user: true,
@@ -219,7 +224,7 @@ export const foodService = {
         throw new Error('Invalid pickup code');
       }
 
-      if (reservation.listing.partnerId !== merchantPartnerId) {
+      if (!isAdmin && merchantPartnerId && reservation.listing.partnerId !== merchantPartnerId) {
         throw new Error('Pickup code does not belong to your store');
       }
 
@@ -229,12 +234,15 @@ export const foodService = {
 
       const now = new Date();
 
+      if (reservation.expiresAt && reservation.expiresAt < now) {
+        throw new Error('Reservation has expired');
+      }
+
       // Atomic conditional update to mark confirmed
       const updateRes = await tx.reservation.updateMany({
         where: {
           id: reservation.id,
           status: 'ACTIVE',
-          expiresAt: { gt: now },
         },
         data: {
           status: 'CONFIRMED',

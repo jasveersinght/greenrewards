@@ -13,6 +13,7 @@ export default function MerchantScanPage() {
   const [receiptRef, setReceiptRef] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [confirmResult, setConfirmResult] = useState<any>(null);
+  const [reuseCodeInput, setReuseCodeInput] = useState('');
 
   // Coupon state
   const [couponCodeInput, setCouponCodeInput] = useState('');
@@ -25,13 +26,22 @@ export default function MerchantScanPage() {
 
   // Lookup claim or coupon on scan or code submission
   async function handleScan(scannedText: string) {
+    let lookupCode = scannedText.trim();
+    try {
+      const parsed = JSON.parse(lookupCode);
+      if (parsed.code) lookupCode = parsed.code;
+      else if (parsed.opaqueId) lookupCode = parsed.opaqueId;
+    } catch {
+      // Plain string
+    }
+
     if (mode === 'FOOD') {
-      handleConfirmFood(scannedText);
+      handleConfirmFood(lookupCode);
       return;
     }
 
     if (mode === 'COUPON') {
-      handleLookupCoupon(scannedText);
+      handleLookupCoupon(lookupCode);
       return;
     }
 
@@ -40,7 +50,7 @@ export default function MerchantScanPage() {
     setConfirmResult(null);
 
     try {
-      const res = await fetch(`/api/claims/${encodeURIComponent(scannedText)}`);
+      const res = await fetch(`/api/claims/${encodeURIComponent(lookupCode)}`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -184,6 +194,7 @@ export default function MerchantScanPage() {
     setReceiptRef('');
     setFoodCode('');
     setCouponCodeInput('');
+    setReuseCodeInput('');
   }
 
   return (
@@ -421,17 +432,50 @@ export default function MerchantScanPage() {
             </div>
           ) : claimData ? (
             <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
-              <h3 className="text-xl font-bold text-slate-900 mb-1">{claimData.offer?.name}</h3>
-              <p className="text-xs text-slate-500 mb-4">Customer: {claimData.user?.displayName || 'Citizen'}</p>
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200 uppercase tracking-wider">
+                    Reusable Bag Stamp Claim
+                  </span>
+                  <h3 className="text-xl font-bold text-slate-900 mt-1">{claimData.offer?.name}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">{claimData.offer?.partner?.name || 'Partner Store'}</p>
+                </div>
+                <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
+                  {claimData.claim?.status || 'PENDING'}
+                </span>
+              </div>
 
-              <div className="mb-4">
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Receipt Reference (Optional)</label>
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2 mb-6">
+                <div className="flex justify-between text-slate-600">
+                  <span>Customer:</span>
+                  <span className="font-bold text-slate-900">{claimData.user?.displayName || 'Citizen'}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Claim Code:</span>
+                  <span className="font-mono font-bold text-slate-900">{claimData.claim?.code}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Current Stamp Progress:</span>
+                  <span className="font-bold text-emerald-800">
+                    {claimData.stampCard?.stamps ?? 0} / {claimData.offer?.stampsNeeded ?? 5} Stamps
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Reward per Stamp:</span>
+                  <span className="font-bold text-slate-900">10 Green Points</span>
+                </div>
+              </div>
+
+              <div className="mb-5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Receipt Reference / Bill Number (Optional)
+                </label>
                 <input
                   type="text"
                   value={receiptRef}
                   onChange={(e) => setReceiptRef(e.target.value)}
-                  placeholder="e.g. BILL-9821"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none"
+                  placeholder="e.g. BILL-9821 or cash memo"
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 outline-none"
                 />
               </div>
 
@@ -440,23 +484,51 @@ export default function MerchantScanPage() {
                   type="button"
                   disabled={confirming}
                   onClick={handleConfirmReuse}
-                  className="flex-1 py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm disabled:opacity-50 cursor-pointer"
+                  className="flex-1 py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm disabled:opacity-50 cursor-pointer"
                 >
-                  {confirming ? 'Confirming...' : '✓ Confirm Stamp'}
+                  {confirming ? 'Confirming...' : '✓ Confirm Stamp & Award Points'}
                 </button>
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition"
+                  className="py-3.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition cursor-pointer"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <QrScanner
-              onScan={(code) => handleScan(code)}
-            />
+            <div className="space-y-4">
+              <QrScanner
+                onScan={(code) => handleScan(code)}
+              />
+
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 text-center shadow-xs">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">
+                  Or Enter 6-Character Claim Code Manually
+                </span>
+                <div className="flex gap-2 max-w-sm mx-auto">
+                  <input
+                    type="text"
+                    value={reuseCodeInput}
+                    onChange={(e) => setReuseCodeInput(e.target.value.toUpperCase())}
+                    placeholder="e.g. 7X8K2P or paste QR code"
+                    className="flex-1 bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-center font-mono font-bold text-sm uppercase outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={loading || !reuseCodeInput.trim()}
+                    onClick={() => handleScan(reuseCodeInput)}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                  >
+                    {loading ? 'Checking...' : 'Verify Claim'}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-2">
+                  Enter the 6-character code shown below the customer&apos;s QR code.
+                </p>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -482,31 +554,37 @@ export default function MerchantScanPage() {
               </button>
             </div>
           ) : (
-            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 text-center shadow-xs">
-              <div className="text-3xl mb-2">🍱</div>
-              <h2 className="font-display text-xl font-bold text-slate-900">Enter Customer Pickup Code</h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-5">
-                Ask customer for the 4-character pickup code displayed on their screen.
-              </p>
+            <div className="space-y-4">
+              <QrScanner
+                onScan={(code) => handleScan(code)}
+              />
 
-              <div className="max-w-xs mx-auto space-y-4">
-                <input
-                  type="text"
-                  maxLength={4}
-                  value={foodCode}
-                  onChange={(e) => setFoodCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. 7K4W"
-                  className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-600 rounded-2xl py-3 text-center text-3xl font-mono font-bold tracking-widest text-slate-900 uppercase outline-none transition-colors"
-                />
+              <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 text-center shadow-xs">
+                <div className="text-3xl mb-2">🍱</div>
+                <h2 className="font-display text-xl font-bold text-slate-900">Or Enter 4-Character Pickup Code</h2>
+                <p className="text-xs sm:text-sm text-slate-500 mt-1 mb-5">
+                  Ask customer for the 4-character pickup code displayed on their reservation.
+                </p>
 
-                <button
-                  type="button"
-                  disabled={confirming || foodCode.length < 4}
-                  onClick={() => handleConfirmFood()}
-                  className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm disabled:opacity-50 cursor-pointer"
-                >
-                  {confirming ? 'Checking...' : '✓ Confirm Pickup & Release'}
-                </button>
+                <div className="max-w-xs mx-auto space-y-4">
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={foodCode}
+                    onChange={(e) => setFoodCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. 7K4W"
+                    className="w-full bg-slate-50 border-2 border-slate-200 focus:border-emerald-600 rounded-2xl py-3 text-center text-3xl font-mono font-bold tracking-widest text-slate-900 uppercase outline-none transition-colors"
+                  />
+
+                  <button
+                    type="button"
+                    disabled={confirming || foodCode.length < 4}
+                    onClick={() => handleConfirmFood()}
+                    className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {confirming ? 'Checking...' : '✓ Confirm Pickup & Release'}
+                  </button>
+                </div>
               </div>
             </div>
           )}

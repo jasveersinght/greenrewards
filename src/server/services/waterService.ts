@@ -5,10 +5,17 @@ import { computeAvailableAt, POINTS_CONFIG } from '@/server/domain/pointsConfig'
 
 export interface SubmitRepairClaimInput {
   userId: string;
-  evidenceUrl: string;
+  evidenceUrl?: string;
   invoiceUrl?: string;
   householdId?: string;
   leakCaseId?: string;
+  category?: string;
+  address?: string;
+  locality?: string;
+  notes?: string;
+  beforePhotoUrl?: string;
+  afterPhotoUrl?: string;
+  repairStage?: string;
 }
 
 export const waterService = {
@@ -31,6 +38,9 @@ export const waterService = {
               take: 7,
             },
             repairClaims: {
+              include: {
+                assignedPlumber: { select: { displayName: true } },
+              },
               orderBy: { createdAt: 'desc' },
             },
           },
@@ -67,6 +77,9 @@ export const waterService = {
                 take: 7,
               },
               repairClaims: {
+                include: {
+                  assignedPlumber: { select: { displayName: true } },
+                },
                 orderBy: { createdAt: 'desc' },
               },
             },
@@ -118,11 +131,21 @@ export const waterService = {
   },
 
   /**
-   * Submit household plumbing repair claim.
+   * Submit household plumbing repair claim or plumber service request.
    * Runs SHA-256 evidence deduplication so the exact same photo cannot be claimed twice.
    */
   async submitRepairClaim(input: SubmitRepairClaimInput) {
-    const evidenceHash = computeTelemetryEvidenceHash(input.evidenceUrl, input.invoiceUrl);
+    let householdId = input.householdId;
+    if (!householdId) {
+      const hh = await waterService.getUserHousehold(input.userId);
+      householdId = hh?.id;
+    }
+
+    const finalEvidenceUrl = input.evidenceUrl || input.beforePhotoUrl || '/evidence/household-repair.jpg';
+    const evidenceHash = computeTelemetryEvidenceHash(
+      finalEvidenceUrl,
+      input.invoiceUrl || input.address || input.notes || crypto.randomUUID()
+    );
 
     // Deduplication check
     const duplicate = await prisma.repairClaim.findFirst({
@@ -130,18 +153,28 @@ export const waterService = {
     });
 
     if (duplicate) {
-      throw new Error('This repair photo or invoice has already been submitted for a reward.');
+      throw new Error('This repair photo or request has already been submitted.');
     }
 
     const claim = await prisma.repairClaim.create({
       data: {
         userId: input.userId,
-        householdId: input.householdId,
+        householdId,
         leakCaseId: input.leakCaseId,
-        evidenceUrl: input.evidenceUrl,
+        evidenceUrl: finalEvidenceUrl,
         invoiceUrl: input.invoiceUrl,
+        category: input.category || 'TAP',
+        address: input.address,
+        locality: input.locality || 'Potheri',
+        notes: input.notes,
+        beforePhotoUrl: input.beforePhotoUrl || finalEvidenceUrl,
+        afterPhotoUrl: input.afterPhotoUrl,
+        repairStage: input.repairStage || 'REQUESTED',
         evidenceHash,
         status: 'PENDING',
+      },
+      include: {
+        assignedPlumber: { select: { displayName: true } },
       },
     });
 
@@ -246,6 +279,9 @@ export const waterService = {
   async getUserRepairClaims(userId: string) {
     return await prisma.repairClaim.findMany({
       where: { userId },
+      include: {
+        assignedPlumber: { select: { displayName: true } },
+      },
       orderBy: { createdAt: 'desc' },
     });
   },

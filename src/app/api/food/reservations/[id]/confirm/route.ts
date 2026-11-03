@@ -14,6 +14,7 @@ export async function POST(
     }
 
     const params = await props.params;
+    const isAdmin = session.roles.includes('ADMIN');
 
     // Find the partner ID associated with the logged-in merchant/admin
     let partnerId = session.partnerIds?.[0] || null;
@@ -24,22 +25,22 @@ export async function POST(
       partnerId = grant?.partnerId || null;
     }
 
-    // In demo environment, if still not found, allow demo partner (Chennai Java Cafe or Bakery)
-    if (!partnerId) {
+    // In demo environment, if still not found and not admin, allow demo partner
+    if (!partnerId && !isAdmin) {
       const demoPartner = await prisma.partner.findFirst({
-        where: { type: 'MERCHANT' },
+        where: { type: { in: ['MERCHANT', 'SHOP'] } },
       });
       partnerId = demoPartner?.id || null;
     }
 
-    if (!partnerId) {
+    if (!partnerId && !isAdmin) {
       return NextResponse.json(
         { success: false, error: 'No associated merchant partner found for this user' },
         { status: 403 }
       );
     }
 
-    const reservation = await foodService.confirmPickup(partnerId, params.id);
+    const reservation = await foodService.confirmPickup(partnerId, params.id, isAdmin);
     return NextResponse.json({ success: true, reservation });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 400 });

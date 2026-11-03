@@ -2,12 +2,12 @@
 
 ## 1. Metrics & Test Counts
 
-| Metric | Before Upgrade | Points Engine | Multi-Role & Portals | Total Delta |
-| :--- | :--- | :--- | :--- | :--- |
-| **Test Suites (Vitest)** | 12 files passed | 17 files passed | **18 files passed** | **+6 suites** |
-| **Total Unit Tests** | 102 passed, 0 failed | 128 passed, 0 failed | **143 passed, 0 failed** | **+41 tests** |
-| **Production Routes** | 55 compiled | 67 compiled | **83 compiled** | **+28 routes** |
-| **TypeScript / Build Errors**| 0 | 0 | **0** | **Zero errors** |
+| Metric | Before Upgrade | Points Engine | Multi-Role & Portals | Cross-Portal Workflows | Total Delta |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Test Suites (Vitest)** | 12 files passed | 17 files passed | 18 files passed | **19 files passed** | **+7 suites** |
+| **Total Unit Tests** | 102 passed, 0 failed | 128 passed, 0 failed | 143 passed, 0 failed | **148 passed, 0 failed** | **+46 tests** |
+| **Production Routes** | 55 compiled | 67 compiled | 83 compiled | **83 compiled** | **+28 routes** |
+| **TypeScript / Build Errors**| 0 | 0 | 0 | **0** | **Zero errors** |
 
 ---
 
@@ -274,6 +274,33 @@ Documentation:
    - `07-portal-admin-applications.png`: Admin review portal (`/admin/applications`) with pending application from `user2@demo`.
    - `08-portal-admin-users.png`: Admin user management (`/admin/users`) with role grants and staff creation modal.
    - `09-citizen-apply.png`: Citizen role application form (`/apply`).
+
+### Step 10: Real-Time Cross-Portal Connectivity & Counter Terminal Manual Verification
+- **Shopkeeper Counter Terminal Manual Code Verification (`/merchant/scan`)**:
+  - Added dedicated manual code verification inputs alongside camera QR scanning across all 3 modes:
+    - **Reuse Stamp**: Enter 6-character alphanumeric claim code (or paste JSON QR payload). Displays customer name, offer, and current stamp count (`3/5 Stamps`), with receipt reference and "✓ Confirm Stamp & Award Points" button.
+    - **Redeem Coupon**: Enter 8-character coupon code (e.g. `ECO-4892`). Displays face value, customer, and "Confirm & Mark Redeemed" button.
+    - **Food Pickup**: QR scanner + manual 4-character pickup code input (e.g. `7K4W`). Confirming verifies pickup and credits 15 GP to the citizen.
+- **Robust QR/JSON Handling**:
+  - `getClaimDetails` and `confirmClaim` in `src/server/services/claimService.ts` automatically parse JSON payloads (`{"opaqueId":"...","code":"..."}`) if scanned by high-res cameras or pasted from text clips.
+- **Citizen <-> Shopkeeper Real-Time Feedback**:
+  - `QrDisplay.tsx` continuously polls `/api/claims/${opaqueId}` every 2 seconds. As soon as the shopkeeper clicks confirm on `/merchant/scan`, the citizen screen instantly updates to `"✅ Stamp Confirmed! +10 Green Points added to your ledger."`
+- **End-to-End Water & Plumber Workflow**:
+  - Citizens on `/water` can submit a plumbing assistance request selecting fixture category (`TAP`, `PIPE`, `TOILET`, `METER`, `TANK`), locality, address, and notes. Includes a 1-click **"Use Sample Photo"** button for instant testing.
+  - Plumbers on `/plumber` instantly see new requests under **Available Requests**, click **Accept Job** (which securely reveals the customer's street address), and advance stages (`ACCEPTED` -> `VISITED` -> `REPAIRED`).
+  - Citizens see live status badges (`Awaiting Plumber`, `Plumber Accepted`, `Plumber Visited`, `Review in Progress`, `✓ 75 GP Awarded`) with a **"↻ Update Feed"** button.
+  - Reviewers on `/reviewer` audit completed repairs via `WaterReviewCard` with fixture details and notes, awarding 75 Green Points upon verification.
+- **Role Application & Instant Session Switching**:
+  - Applications submitted at `/apply` immediately appear under `/admin/applications`.
+  - Admin approval automatically provisions a Partner record and grants the role.
+  - Role switcher re-issues session cookies so the user can immediately switch to their new role without re-logging in.
+- **Comprehensive Vitest Integration Suite (`tests/unit/crossPortalWorkflows.test.ts`)**:
+  - 5 tests covering all cross-portal workflows:
+    1. Reusable bag stamp claim verification by shopkeeper via 6-character code.
+    2. Reusable bag stamp claim verification via QR payload JSON string.
+    3. Water leak request -> Plumber job acceptance -> Reviewer closure & 75 GP award.
+    4. Food rescue reservation -> Shopkeeper 4-character code pickup confirmation.
+    5. Role application submission -> Admin approval -> Partner & RoleGrant verification.
 
 ---
 

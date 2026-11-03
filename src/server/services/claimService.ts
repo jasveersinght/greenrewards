@@ -148,7 +148,15 @@ export async function createClaim(userId: string, offerId: string): Promise<Crea
 }
 
 export async function getClaimDetails(opaqueIdOrCode: string, merchantPartnerId?: string | null) {
-  const normalized = opaqueIdOrCode.trim();
+  let normalized = opaqueIdOrCode.trim();
+  try {
+    const parsed = JSON.parse(normalized);
+    if (parsed.opaqueId) normalized = parsed.opaqueId;
+    else if (parsed.code) normalized = parsed.code;
+  } catch {
+    // Plain string
+  }
+
   const claim = await prisma.claim.findFirst({
     where: {
       OR: [
@@ -242,7 +250,7 @@ export async function confirmClaim(params: {
   const roleGrant = await prisma.roleGrant.findFirst({
     where: {
       userId: merchantUserId,
-      role: { in: ['MERCHANT', 'ADMIN'] },
+      role: { in: ['MERCHANT', 'SHOPKEEPER', 'ADMIN'] },
     },
   });
 
@@ -253,7 +261,15 @@ export async function confirmClaim(params: {
   const merchantPartnerId = roleGrant.role === 'ADMIN' ? null : roleGrant.partnerId;
 
   return prisma.$transaction(async (tx) => {
-    const normalized = opaqueIdOrCode.trim();
+    let normalized = opaqueIdOrCode.trim();
+    try {
+      const parsed = JSON.parse(normalized);
+      if (parsed.opaqueId) normalized = parsed.opaqueId;
+      else if (parsed.code) normalized = parsed.code;
+    } catch {
+      // Plain string
+    }
+
     const claim = await tx.claim.findFirst({
       where: {
         OR: [

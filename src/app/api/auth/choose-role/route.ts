@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { getSession, switchSessionActiveRole } from '@/server/session'
-import { normalizeRole, ROLE_HOME_PATHS } from '@/server/domain/roles'
+import { getSession, switchSessionActiveRole, setSessionCookie } from '@/server/session'
+import { signSessionJwt } from '@/server/sessionToken'
+import { getUserWithRoles } from '@/server/services/authService'
+import { normalizeRole, ROLE_HOME_PATHS, type AppRole } from '@/server/domain/roles'
 
 const schema = z.object({
   role: z.string().min(1),
@@ -36,6 +38,23 @@ export async function POST(req: NextRequest) {
     activeRole: normalized,
     redirectUrl,
   })
+
+  // Re-issue updated session cookie so middleware and server components reflect active role immediately
+  const userWithRoles = await getUserWithRoles(session.userId)
+  const rawRoles = userWithRoles?.roleGrants.map(g => g.role) ?? []
+  const roles = Array.from(new Set(rawRoles.map(normalizeRole).concat(['CITIZEN']))) as AppRole[]
+  const partnerIds = userWithRoles?.roleGrants.filter(g => g.partnerId).map(g => g.partnerId!) ?? []
+
+  const newToken = await signSessionJwt({
+    userId: session.userId,
+    email: session.email,
+    username: session.username,
+    displayName: session.displayName,
+    activeRole: normalized,
+    roles,
+    partnerIds,
+  })
+  setSessionCookie(response, newToken)
 
   if (parsed.data.remember) {
     response.cookies.set('gr_preferred_role', normalized, {

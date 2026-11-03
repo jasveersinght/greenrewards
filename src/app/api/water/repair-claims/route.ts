@@ -4,10 +4,17 @@ import { waterService } from '@/server/services/waterService';
 import { z } from 'zod';
 
 const claimSchema = z.object({
-  evidenceUrl: z.string().min(5),
+  evidenceUrl: z.string().optional(),
   invoiceUrl: z.string().optional(),
   householdId: z.string().optional(),
   leakCaseId: z.string().optional(),
+  category: z.string().optional(),
+  address: z.string().optional(),
+  locality: z.string().optional(),
+  notes: z.string().optional(),
+  beforePhotoUrl: z.string().optional(),
+  afterPhotoUrl: z.string().optional(),
+  repairStage: z.string().optional(),
 });
 
 export async function GET() {
@@ -43,6 +50,13 @@ export async function POST(request: Request) {
       invoiceUrl: parsed.data.invoiceUrl,
       householdId: parsed.data.householdId,
       leakCaseId: parsed.data.leakCaseId,
+      category: parsed.data.category,
+      address: parsed.data.address,
+      locality: parsed.data.locality,
+      notes: parsed.data.notes,
+      beforePhotoUrl: parsed.data.beforePhotoUrl,
+      afterPhotoUrl: parsed.data.afterPhotoUrl,
+      repairStage: parsed.data.repairStage,
     });
 
     return NextResponse.json({ success: true, claim }, { status: 201 });

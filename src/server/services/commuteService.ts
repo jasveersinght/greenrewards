@@ -5,6 +5,9 @@ import {
   calculateCommuteProgress,
   isJourneyDateValid,
 } from '@/server/domain/commute';
+import { appendDoubleEntry } from './walletService';
+import { computeAvailableAt, POINTS_CONFIG } from '@/server/domain/pointsConfig';
+import { evaluateDailyTransitCap } from '@/server/domain/caps';
 
 export interface SubmitTicketInput {
   challengeId: string;
@@ -183,17 +186,51 @@ export const commuteService = {
         },
       });
 
-      // Update submission status
-      const updatedSubmission = await tx.ticketSubmission.update({
-        where: { id: submissionId },
+      // Atomic update submission status
+      const updateRes = await tx.ticketSubmission.updateMany({
+        where: { id: submissionId, status: 'SUBMITTED' },
         data: {
           status: decision,
           reviewId: review.id,
         },
       });
 
-      // If approved, check if milestone reached
+      if (updateRes.count !== 1) {
+        throw new Error('TICKET_ALREADY_ADJUDICATED');
+      }
+
+      // If approved, award per-trip points and check if milestone reached
       if (decision === 'APPROVED') {
+        const availableAt = computeAvailableAt();
+
+        // 1. Award 5 points per verified trip (check daily cap)
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const approvedToday = await tx.ticketSubmission.count({
+          where: {
+            userId: submission.userId,
+            status: 'APPROVED',
+            createdAt: { gte: startOfDay },
+          },
+        });
+
+        const tripCap = evaluateDailyTransitCap(approvedToday - 1);
+        if (tripCap.allowed) {
+          await appendDoubleEntry(tx, {
+            debitAccount: 'SPONSOR_POOL',
+            creditAccount: 'USER_PENDING',
+            amountPoints: POINTS_CONFIG.EARNING.TRANSIT_TRIP_REVIEWED,
+            userId: submission.userId,
+            type: 'EARN',
+            refType: 'TicketSubmission',
+            refId: submission.id,
+            availableAt,
+            note: `Transit trip verified: ${submission.ticketId} (+5 GP)`,
+          });
+        }
+
+        // 2. Check 5-trip streak milestone
         const approvedCount = await tx.ticketSubmission.count({
           where: {
             challengeId: submission.challengeId,
@@ -203,7 +240,7 @@ export const commuteService = {
         });
 
         if (approvedCount >= submission.challenge.targetJourneys) {
-          // Check if reward was already issued
+          // Check if streak reward was already issued
           const existingReward = await tx.ledgerEntry.findFirst({
             where: {
               userId: submission.userId,
@@ -213,24 +250,28 @@ export const commuteService = {
           });
 
           if (!existingReward) {
-            // Issue milestone bounty ₹100
-            await tx.ledgerEntry.create({
-              data: {
-                userId: submission.userId,
-                campaignId: submission.challenge.campaignId,
-                account: 'AVAILABLE',
-                amountPaise: submission.challenge.rewardValuePaise,
-                type: 'EARN_PENDING',
-                refType: 'COMMUTE_CHALLENGE',
-                refId: submission.challengeId,
-                note: `Green Commute Challenge Completed! ${approvedCount}/${submission.challenge.targetJourneys} trips verified.`,
-              },
+            // Issue milestone streak bonus (25 Points)
+            await appendDoubleEntry(tx, {
+              debitAccount: 'SPONSOR_POOL',
+              creditAccount: 'USER_PENDING',
+              amountPoints: POINTS_CONFIG.EARNING.TRANSIT_STREAK_BONUS,
+              userId: submission.userId,
+              campaignId: submission.challenge.campaignId,
+              type: 'EARN',
+              refType: 'COMMUTE_CHALLENGE',
+              refId: submission.challengeId,
+              availableAt,
+              note: `Green Commute 5-Trip Streak Bonus (+25 GP)`,
             });
           }
         }
       }
 
-      return updatedSubmission;
+      return {
+        ...submission,
+        status: decision,
+        reviewId: review.id,
+      };
     });
   },
 

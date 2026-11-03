@@ -119,7 +119,7 @@ export default function LandingPage() {
           transition={{ duration: 0.6, delay: 0.2, ease: 'easeOut' }}
           className="mt-3.5 text-center text-sm md:text-base text-slate-700 max-w-[650px] leading-relaxed font-body font-medium drop-shadow-xs"
         >
-          Turn everyday sustainable actions in Chennai into verified cash rewards. Report water leaks, rescue surplus meals, ride the metro, and track your verified carbon impact.
+          Turn everyday sustainable actions in Chennai into verified Green Points. Report water leaks, rescue surplus meals, and ride the metro — then redeem points for exclusive partner merchant coupons and brand discounts.
         </motion.p>
 
         {/* 4. CTA Buttons */}
@@ -148,8 +148,55 @@ export default function LandingPage() {
           </Link>
         </motion.div>
 
-        {/* 5. Custom Coded Dashboard Preview (overflows and clipped at bottom of viewport) */}
+        {/* 5. Custom Coded Dashboard Preview */}
         <DashboardPreview />
+
+        {/* 6. How Rewards Are Funded (Sponsor-backed coupon model) */}
+        <section className="mt-16 w-full max-w-5xl bg-white/90 backdrop-blur-md border border-slate-200/90 rounded-3xl p-8 sm:p-10 shadow-sm text-left">
+          <div className="max-w-2xl">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+              Transparent Sustainability Economy
+            </span>
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 mt-3">
+              How Rewards Are Funded
+            </h2>
+            <p className="text-slate-600 text-sm mt-1">
+              Green Points are not money and cannot be cashed out. Instead, they form a closed-loop sustainability incentive system funded by civic partners.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-lg mb-3">
+                1
+              </div>
+              <h3 className="font-bold text-slate-900 text-base">Partner &amp; CSR Funding</h3>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                Local grocery stores, sustainable retail brands, and corporate CSR programs allocate discount coupons and promo codes to encourage civic habits.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5">
+              <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-800 font-bold flex items-center justify-center text-lg mb-3">
+                2
+              </div>
+              <h3 className="font-bold text-slate-900 text-base">Verified Proof-of-Action</h3>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                Citizens earn Green Points (GP) strictly when sustainable actions are verified — whether scanning reuse bag QRs or resolving pipeline leaks.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-5">
+              <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-lg mb-3">
+                3
+              </div>
+              <h3 className="font-bold text-slate-900 text-base">Direct In-Store Redemption</h3>
+              <p className="text-xs text-slate-600 mt-2 leading-relaxed">
+                Points are redeemed for partner coupons directly in the app. QR tokens or codes are verified at checkout. No cash transfers or payouts exist.
+              </p>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );

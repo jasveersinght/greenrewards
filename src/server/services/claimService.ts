@@ -1,37 +1,41 @@
 /**
  * Claim Service — transactional orchestrator for QR claims, merchant verification,
  * stamp increments, voucher generation, and merchant milestone tracking.
+ * Concurrency-safe using atomic conditional updates and double-entry points.
  */
-import { prisma } from '@/server/db'
+import { prisma } from '@/server/db';
 import {
   generateClaimCode,
   claimExpiryDate,
   validateClaimForConfirmation,
-} from '@/server/domain/claims'
+} from '@/server/domain/claims';
 import {
   calculateStampProgress,
   checkDailyLimit,
   shouldFlagMerchantForAudit,
-} from '@/server/domain/rewards'
-import { buildEntry } from '@/server/domain/wallet'
+} from '@/server/domain/rewards';
+import { appendDoubleEntry } from './walletService';
+import { computeAvailableAt, POINTS_CONFIG } from '@/server/domain/pointsConfig';
+import { evaluateDailyReuseCap } from '@/server/domain/caps';
+import crypto from 'crypto';
 
 export interface CreateClaimResult {
   claim: {
-    id: string
-    opaqueId: string
-    code: string
-    expiresAt: Date
-    status: string
-  }
+    id: string;
+    opaqueId: string;
+    code: string;
+    expiresAt: Date;
+    status: string;
+  };
   offer: {
-    id: string
-    name: string
-    partnerName: string
-    stampsNeeded: number
-    voucherValuePaise: number
-  }
-  currentStamps: number
-  qrPayload: string
+    id: string;
+    name: string;
+    partnerName: string;
+    stampsNeeded: number;
+    voucherValuePaise: number;
+  };
+  currentStamps: number;
+  qrPayload: string;
 }
 
 export async function createClaim(userId: string, offerId: string): Promise<CreateClaimResult> {
@@ -41,19 +45,19 @@ export async function createClaim(userId: string, offerId: string): Promise<Crea
       partner: { select: { id: true, name: true } },
       campaign: { select: { id: true, status: true, limits: true } },
     },
-  })
+  });
 
   if (!offer || !offer.active) {
-    throw new Error('OFFER_NOT_FOUND_OR_INACTIVE')
+    throw new Error('OFFER_NOT_FOUND_OR_INACTIVE');
   }
 
   if (offer.campaign.status !== 'ACTIVE') {
-    throw new Error('CAMPAIGN_NOT_ACTIVE')
+    throw new Error('CAMPAIGN_NOT_ACTIVE');
   }
 
-  // Check if user has already confirmed a claim today
-  const startOfDay = new Date()
-  startOfDay.setHours(0, 0, 0, 0)
+  // Check daily limit (max 2 stamps per shop per day)
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
 
   const confirmedTodayCount = await prisma.claim.count({
     where: {
@@ -62,10 +66,11 @@ export async function createClaim(userId: string, offerId: string): Promise<Crea
       status: 'CONFIRMED',
       usedAt: { gte: startOfDay },
     },
-  })
+  });
 
-  if (!checkDailyLimit(confirmedTodayCount, 1)) {
-    throw new Error('DAILY_LIMIT_REACHED')
+  const dailyCap = evaluateDailyReuseCap(confirmedTodayCount);
+  if (!dailyCap.allowed) {
+    throw new Error('DAILY_LIMIT_REACHED: Max 2 stamps per shop per day');
   }
 
   // Check for an existing unexpired pending claim to avoid duplicate creation
@@ -77,19 +82,15 @@ export async function createClaim(userId: string, offerId: string): Promise<Crea
       expiresAt: { gt: new Date() },
     },
     orderBy: { createdAt: 'desc' },
-  })
+  });
 
-  // Get current user stamps for this offer
   const stampCard = await prisma.stampCard.findUnique({
     where: { userId_offerId: { userId, offerId } },
-  })
-  const currentStamps = stampCard?.stamps ?? 0
+  });
+  const currentStamps = stampCard?.stamps ?? 0;
 
   if (existingPending) {
-    const qrPayload = JSON.stringify({
-      opaqueId: existingPending.opaqueId,
-      code: existingPending.code,
-    })
+    // The QR contains ONLY the random opaque claimId (never userId or sensitive data)
     return {
       claim: {
         id: existingPending.id,
@@ -106,14 +107,14 @@ export async function createClaim(userId: string, offerId: string): Promise<Crea
         voucherValuePaise: offer.voucherValuePaise,
       },
       currentStamps,
-      qrPayload,
-    }
+      qrPayload: existingPending.opaqueId,
+    };
   }
 
-  // Create fresh claim
-  const opaqueId = crypto.randomUUID()
-  const code = generateClaimCode()
-  const expiresAt = claimExpiryDate(120)
+  // Create fresh claim with random unguessable UUID
+  const opaqueId = crypto.randomUUID();
+  const code = generateClaimCode();
+  const expiresAt = claimExpiryDate(120);
 
   const claim = await prisma.claim.create({
     data: {
@@ -124,12 +125,7 @@ export async function createClaim(userId: string, offerId: string): Promise<Crea
       expiresAt,
       status: 'PENDING',
     },
-  })
-
-  const qrPayload = JSON.stringify({
-    opaqueId: claim.opaqueId,
-    code: claim.code,
-  })
+  });
 
   return {
     claim: {
@@ -147,12 +143,12 @@ export async function createClaim(userId: string, offerId: string): Promise<Crea
       voucherValuePaise: offer.voucherValuePaise,
     },
     currentStamps,
-    qrPayload,
-  }
+    qrPayload: claim.opaqueId,
+  };
 }
 
 export async function getClaimDetails(opaqueIdOrCode: string, merchantPartnerId?: string | null) {
-  const normalized = opaqueIdOrCode.trim()
+  const normalized = opaqueIdOrCode.trim();
   const claim = await prisma.claim.findFirst({
     where: {
       OR: [
@@ -175,10 +171,10 @@ export async function getClaimDetails(opaqueIdOrCode: string, merchantPartnerId?
         },
       },
     },
-  })
+  });
 
   if (!claim) {
-    return { found: false, error: 'CLAIM_NOT_FOUND' } as const
+    return { found: false, error: 'CLAIM_NOT_FOUND' } as const;
   }
 
   const validation = validateClaimForConfirmation({
@@ -186,12 +182,11 @@ export async function getClaimDetails(opaqueIdOrCode: string, merchantPartnerId?
     expiresAt: claim.expiresAt,
     offerPartnerId: claim.offer.partnerId,
     merchantPartnerId,
-  })
+  });
 
-  // Get current stamp card
   const stampCard = await prisma.stampCard.findUnique({
     where: { userId_offerId: { userId: claim.userId, offerId: claim.offerId } },
-  })
+  });
 
   return {
     found: true,
@@ -219,24 +214,29 @@ export async function getClaimDetails(opaqueIdOrCode: string, merchantPartnerId?
     },
     currentStamps: stampCard?.stamps ?? 0,
     validation,
-  } as const
+  } as const;
 }
 
 export interface ConfirmClaimResult {
-  success: boolean
-  error?: string
-  stampsNow?: number
-  voucherIssued?: boolean
-  voucherValuePaise?: number
-  message?: string
+  success: boolean;
+  error?: string;
+  stampsNow?: number;
+  pointsAwarded?: number;
+  bonusPointsAwarded?: number;
+  message?: string;
 }
 
+/**
+ * Concurrency-safe confirm claim:
+ * Uses atomic conditional update `updateMany({ where: { id, usedAt: null, expiresAt: { gt: now } } })`.
+ * Exactly 1 confirmation succeeds among parallel requests!
+ */
 export async function confirmClaim(params: {
-  opaqueIdOrCode: string
-  merchantUserId: string
-  receiptRef?: string
+  opaqueIdOrCode: string;
+  merchantUserId: string;
+  receiptRef?: string;
 }): Promise<ConfirmClaimResult> {
-  const { opaqueIdOrCode, merchantUserId, receiptRef } = params
+  const { opaqueIdOrCode, merchantUserId, receiptRef } = params;
 
   // 1. Resolve merchant partner scope
   const roleGrant = await prisma.roleGrant.findFirst({
@@ -244,17 +244,16 @@ export async function confirmClaim(params: {
       userId: merchantUserId,
       role: { in: ['MERCHANT', 'ADMIN'] },
     },
-  })
+  });
 
   if (!roleGrant) {
-    return { success: false, error: 'NOT_AUTHORIZED_AS_MERCHANT' }
+    return { success: false, error: 'NOT_AUTHORIZED_AS_MERCHANT' };
   }
 
-  const merchantPartnerId = roleGrant.role === 'ADMIN' ? null : roleGrant.partnerId
+  const merchantPartnerId = roleGrant.role === 'ADMIN' ? null : roleGrant.partnerId;
 
-  // 2. Perform confirmation in an atomic transaction
-  return prisma.$transaction(async tx => {
-    const normalized = opaqueIdOrCode.trim()
+  return prisma.$transaction(async (tx) => {
+    const normalized = opaqueIdOrCode.trim();
     const claim = await tx.claim.findFirst({
       where: {
         OR: [
@@ -271,55 +270,49 @@ export async function confirmClaim(params: {
         },
         user: { select: { id: true, displayName: true } },
       },
-    })
+    });
 
     if (!claim) {
-      return { success: false, error: 'CLAIM_NOT_FOUND' }
+      return { success: false, error: 'CLAIM_NOT_FOUND' };
     }
 
-    const validation = validateClaimForConfirmation({
-      status: claim.status,
-      expiresAt: claim.expiresAt,
-      offerPartnerId: claim.offer.partnerId,
-      merchantPartnerId,
-    })
-
-    if (!validation.valid) {
-      return { success: false, error: validation.error }
+    // Prevent merchants from confirming their own claim
+    if (claim.userId === merchantUserId) {
+      return { success: false, error: 'CANNOT_CONFIRM_OWN_CLAIM' };
     }
 
-    // Double check daily limit in transaction
-    const startOfDay = new Date()
-    startOfDay.setHours(0, 0, 0, 0)
+    const now = new Date();
 
-    const confirmedToday = await tx.claim.count({
+    // 2. Atomic Conditional Update: Only one concurrent execution can transition usedAt from null!
+    const updateResult = await tx.claim.updateMany({
       where: {
-        userId: claim.userId,
-        offerId: claim.offerId,
-        status: 'CONFIRMED',
-        usedAt: { gte: startOfDay },
+        id: claim.id,
+        usedAt: null,
+        expiresAt: { gt: now },
       },
-    })
-
-    if (!checkDailyLimit(confirmedToday, 1)) {
-      return { success: false, error: 'DAILY_LIMIT_REACHED' }
-    }
-
-    // Mark claim confirmed
-    const confirmedAt = new Date()
-    await tx.claim.update({
-      where: { id: claim.id },
       data: {
         status: 'CONFIRMED',
-        usedAt: confirmedAt,
+        usedAt: now,
         receiptRef: receiptRef ?? null,
       },
-    })
+    });
+
+    if (updateResult.count !== 1) {
+      return {
+        success: false,
+        error: claim.usedAt ? 'ALREADY_USED' : 'EXPIRED',
+      };
+    }
+
+    // Check partner match if merchantPartnerId is set
+    if (merchantPartnerId && claim.offer.partnerId !== merchantPartnerId) {
+      throw new Error('WRONG_PARTNER: Offer is not valid at this merchant');
+    }
 
     // Fetch or create user StampCard
     let stampCard = await tx.stampCard.findUnique({
       where: { userId_offerId: { userId: claim.userId, offerId: claim.offerId } },
-    })
+    });
 
     if (!stampCard) {
       stampCard = await tx.stampCard.create({
@@ -328,88 +321,72 @@ export async function confirmClaim(params: {
           offerId: claim.offerId,
           stamps: 0,
         },
-      })
+      });
     }
 
     const progress = calculateStampProgress(
       stampCard.stamps,
       1,
-      claim.offer.stampsNeeded
-    )
+      claim.offer.stampsNeeded || 5
+    );
 
     // Update stamp card
     await tx.stampCard.update({
       where: { id: stampCard.id },
       data: {
         stamps: progress.nextStamps,
-        completedAt: progress.isCompleted ? confirmedAt : stampCard.completedAt,
+        completedAt: progress.isCompleted ? now : stampCard.completedAt,
       },
-    })
+    });
 
-    // Create STAMPS ledger entry
-    await tx.ledgerEntry.create({
-      data: buildEntry({
+    // 1. Award 10 points for the reuse stamp
+    const availableAt = computeAvailableAt();
+    await appendDoubleEntry(tx, {
+      debitAccount: 'SPONSOR_POOL',
+      creditAccount: 'USER_PENDING',
+      amountPoints: POINTS_CONFIG.EARNING.REUSE_STAMP,
+      userId: claim.userId,
+      campaignId: claim.offer.campaignId,
+      type: 'EARN',
+      refType: 'Claim',
+      refId: claim.id,
+      availableAt,
+      note: `Reusable bag confirmed at ${claim.offer.partner.name}${receiptRef ? ` (Receipt: ${receiptRef})` : ''}`,
+    });
+
+    let bonusPointsAwarded = 0;
+
+    // 2. If 5-stamp card completed: award 40 bonus points
+    if (progress.isCompleted) {
+      bonusPointsAwarded = POINTS_CONFIG.EARNING.REUSE_CARD_BONUS;
+      await appendDoubleEntry(tx, {
+        debitAccount: 'SPONSOR_POOL',
+        creditAccount: 'USER_PENDING',
+        amountPoints: bonusPointsAwarded,
         userId: claim.userId,
         campaignId: claim.offer.campaignId,
-        account: 'STAMPS',
-        type: 'EARN_STAMP',
-        stamps: 1,
-        refType: 'Claim',
-        refId: claim.id,
-        note: `Stamp earned at ${claim.offer.partner.name}${receiptRef ? ` (Receipt: ${receiptRef})` : ''}`,
-      }),
-    })
+        type: 'EARN',
+        refType: 'StampCard',
+        refId: stampCard.id,
+        availableAt,
+        note: `Card Completion Bonus: 5 stamps at ${claim.offer.partner.name}! 40 bonus GP awarded.`,
+      });
 
-    let voucherIssued = false
-    let voucherValuePaise = 0
-
-    // If milestone completed: issue Voucher + AVAILABLE ledger credit + notification
-    if (progress.isCompleted) {
-      voucherIssued = true
-      voucherValuePaise = claim.offer.voucherValuePaise
-
-      const voucherExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-      const voucher = await tx.voucher.create({
-        data: {
-          userId: claim.userId,
-          campaignId: claim.offer.campaignId,
-          partnerId: claim.offer.partnerId,
-          valuePaise: voucherValuePaise,
-          expiresAt: voucherExpiry,
-        },
-      })
-
-      // Add voucher credit ledger entry
-      await tx.ledgerEntry.create({
-        data: buildEntry({
-          userId: claim.userId,
-          campaignId: claim.offer.campaignId,
-          account: 'AVAILABLE',
-          type: 'APPROVE_PENDING',
-          amountPaise: voucherValuePaise,
-          refType: 'Voucher',
-          refId: voucher.id,
-          note: `Completed ${claim.offer.stampsNeeded} stamps at ${claim.offer.partner.name}! Voucher awarded.`,
-        }),
-      })
-
-      // Completion notification
       await tx.notification.create({
         data: {
           userId: claim.userId,
-          title: `🎉 ₹${(voucherValuePaise / 100).toFixed(0)} Voucher Earned!`,
-          body: `You completed your stamp card at ${claim.offer.partner.name}! Your voucher is ready in your wallet.`,
+          title: '🎉 40 Bonus Points Earned!',
+          body: `You completed your 5-stamp card at ${claim.offer.partner.name}! 40 bonus Green Points are pending settlement.`,
         },
-      })
+      });
     } else {
-      // Regular stamp notification
       await tx.notification.create({
         data: {
           userId: claim.userId,
           title: `✅ Stamp earned at ${claim.offer.partner.name}!`,
-          body: `Reusable bag confirmed. Progress: ${progress.nextStamps}/${claim.offer.stampsNeeded} stamps.`,
+          body: `Reusable bag confirmed (+10 GP). Progress: ${progress.nextStamps}/${claim.offer.stampsNeeded || 5} stamps.`,
         },
-      })
+      });
     }
 
     // Increment merchant milestone
@@ -428,13 +405,13 @@ export async function confirmClaim(params: {
       update: {
         count: { increment: 1 },
       },
-    })
+    });
 
     if (shouldFlagMerchantForAudit(milestone.count, 1)) {
       await tx.merchantMilestone.update({
         where: { id: milestone.id },
         data: { flaggedForAudit: true },
-      })
+      });
     }
 
     // Audit log
@@ -448,21 +425,21 @@ export async function confirmClaim(params: {
           userId: claim.userId,
           offerId: claim.offerId,
           receiptRef,
-          voucherIssued,
+          pointsAwarded: POINTS_CONFIG.EARNING.REUSE_STAMP + bonusPointsAwarded,
         }),
       },
-    })
+    });
 
     return {
       success: true,
       stampsNow: progress.nextStamps,
-      voucherIssued,
-      voucherValuePaise,
-      message: voucherIssued
-        ? `Stamp confirmed! Completed card — ₹${(voucherValuePaise / 100).toFixed(0)} Voucher awarded to customer!`
-        : `Stamp confirmed! Customer now has ${progress.nextStamps}/${claim.offer.stampsNeeded} stamps.`,
-    }
-  })
+      pointsAwarded: POINTS_CONFIG.EARNING.REUSE_STAMP,
+      bonusPointsAwarded,
+      message: progress.isCompleted
+        ? `Card completed! Awarded 10 GP + 40 Bonus Points (Total 50 GP).`
+        : `Stamp confirmed! +10 GP pending settlement.`,
+    };
+  });
 }
 
 export async function getUserStampCards(userId: string) {
@@ -477,6 +454,6 @@ export async function getUserStampCards(userId: string) {
       },
     },
     orderBy: { updatedAt: 'desc' },
-  })
-  return cards
+  });
+  return cards;
 }

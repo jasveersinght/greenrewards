@@ -40,6 +40,7 @@ export async function POST(
       WRONG_PARTNER: 403,
       DAILY_LIMIT_REACHED: 429,
       NOT_AUTHORIZED_AS_MERCHANT: 403,
+      CANNOT_CONFIRM_OWN_CLAIM: 403,
     }
     return NextResponse.json(
       { error: result.error ?? 'Failed to confirm claim' },

@@ -84,20 +84,33 @@ export default async function AdminImpactDashboardPage() {
         </div>
 
         <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
-          <div className="text-2xl mb-2">💰</div>
-          <p className="text-2xl font-extrabold text-emerald-700 font-display">₹{metrics.totalDisbursedRupees.toLocaleString()}</p>
-          <p className="text-slate-900 text-sm font-semibold mt-1">Eco-Incentives Paid</p>
-          <p className="text-slate-500 text-xs mt-0.5">Disbursed directly into citizen wallets</p>
+          <div className="text-2xl mb-2">🪙</div>
+          <p className="text-2xl font-extrabold text-emerald-700 font-display">{(metrics.stampsAvoidedBags * 10 + metrics.mealsRescued * 15 + metrics.leaksRepaired * 150 + metrics.transitTrips * 5).toLocaleString()} GP</p>
+          <p className="text-slate-900 text-sm font-semibold mt-1">Green Points Awarded</p>
+          <p className="text-slate-500 text-xs mt-0.5">Credited to citizen wallets for coupons</p>
         </div>
       </div>
 
       {/* Municipal Context & Data Provenance */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 text-xs text-slate-600 space-y-2 shadow-xs">
-        <h3 className="text-slate-900 font-semibold text-sm">Data Provenance &amp; Verification Protocol</h3>
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 text-xs text-slate-600 space-y-3 shadow-xs">
+        <h3 className="text-slate-900 font-semibold text-sm">Verified Action Counts &amp; Scientific Emission Factors</h3>
         <p>
-          All metrics are computed append-only from double-entry cryptographic ledger records and verified reviewer actions.
-          Simulated entities (e.g. CMRL simulated authority, Chennai Metro Water demo) are visibly badged and isolated from production municipal telemetry.
+          All sustainability impact numbers are <strong>estimated models</strong> derived from physically verified action counts. We avoid unverified exact claims.
         </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 text-[11px]">
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <strong>Electricity Factor:</strong> 0.82 kg CO₂e / kWh based on CEA (Central Electricity Authority) India Grid Emission Database v19.
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <strong>Clean Transit Factor:</strong> ~0.14 kg CO₂e / passenger-km displaced vs private 2-wheeler commute (MoHUA urban transit estimates).
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <strong>Water Conservation Factor:</strong> 1,200 Litres / repaired leak based on CMWSSB secondary pipeline leak severity benchmarks.
+          </div>
+          <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <strong>Food Waste Factor:</strong> ~2.5 kg CO₂e / kg rescued food based on UNEP Food Waste Index 2024 lifecycle models.
+          </div>
+        </div>
         <p className="text-slate-400 pt-1">
           Last computed: {new Date(metrics.lastUpdated).toLocaleString()}
         </p>

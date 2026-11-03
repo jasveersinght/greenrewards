@@ -39,9 +39,10 @@ export async function POST(
 
     return NextResponse.json(result)
   } catch (err: any) {
+    const status = err.message?.includes('SELF_VERIFICATION_NOT_ALLOWED') ? 403 : 400
     return NextResponse.json(
       { error: err.message ?? 'Failed to verify and close leak' },
-      { status: 400 }
+      { status }
     )
   }
 }

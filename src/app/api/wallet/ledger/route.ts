@@ -17,6 +17,11 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     balance: {
+      availablePoints: balance.availablePoints,
+      pendingPoints: balance.pendingPoints,
+      reservedPoints: balance.reservedPoints,
+      expiringSoonPoints: balance.expiringSoonPoints,
+      pendingLots: balance.pendingLots,
       stamps: balance.stamps,
       pendingPaise: balance.pendingPaise.toString(),
       availablePaise: balance.availablePaise.toString(),
@@ -24,6 +29,7 @@ export async function GET(req: NextRequest) {
     },
     entries: entries.map(e => ({
       ...e,
+      amountPoints: e.amountPoints ?? 0,
       amountPaise: e.amountPaise?.toString() ?? null,
     })),
   })

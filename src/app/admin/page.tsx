@@ -1,26 +1,30 @@
-import { prisma } from '@/server/db'
+import { prisma } from '@/server/db';
+import AdminOperations from '@/components/admin/AdminOperations';
+import Link from 'next/link';
+import { Gift, ShieldCheck, Tag } from 'lucide-react';
 
 export default async function AdminDashboardPage() {
-  const [campaignCount, partnerCount, userCount, budgetStats] = await Promise.all([
+  const [
+    campaignCount,
+    partnerCount,
+    userCount,
+    couponCatalogCount,
+    redemptionsCount,
+    ledgerCount,
+  ] = await Promise.all([
     prisma.campaign.count({ where: { status: 'ACTIVE' } }),
     prisma.partner.count({ where: { approved: true } }),
     prisma.user.count(),
-    prisma.budget.aggregate({ _sum: { totalPaise: true, reservedPaise: true, spentPaise: true } }),
-  ])
-
-  const totalBudget = Number(budgetStats._sum.totalPaise ?? 0)
-  const totalSpent = Number(budgetStats._sum.spentPaise ?? 0)
-  const totalReserved = Number(budgetStats._sum.reservedPaise ?? 0)
-
-  function formatPaise(v: bigint | number) {
-    return `₹${(Number(v) / 100).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-  }
+    prisma.couponCatalogItem.count({ where: { isActive: true } }),
+    prisma.redemption.count(),
+    prisma.ledgerEntry.count(),
+  ]);
 
   return (
     <div className="space-y-6 font-body">
       <div>
-        <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Dashboard</h2>
-        <p className="text-slate-500 text-sm mt-1">Green Rewards system overview &amp; budget telemetry</p>
+        <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900">Admin Dashboard</h2>
+        <p className="text-slate-500 text-sm mt-1">Green Points telemetry, cryptographic ledger &amp; coupon operations</p>
       </div>
 
       {/* Stats grid */}
@@ -28,8 +32,8 @@ export default async function AdminDashboardPage() {
         {[
           { label: 'Active Campaigns', value: campaignCount, icon: '📢', color: 'text-emerald-700 bg-emerald-50' },
           { label: 'Approved Partners', value: partnerCount, icon: '🏪', color: 'text-blue-700 bg-blue-50' },
-          { label: 'Total Citizens', value: userCount, icon: '👥', color: 'text-purple-700 bg-purple-50' },
-          { label: 'Budget Spent', value: formatPaise(totalSpent), icon: '💰', color: 'text-amber-700 bg-amber-50' },
+          { label: 'Active Coupons', value: couponCatalogCount, icon: '🎟️', color: 'text-purple-700 bg-purple-50' },
+          { label: 'Total Redemptions', value: redemptionsCount, icon: '🎁', color: 'text-amber-700 bg-amber-50' },
         ].map(stat => (
           <div key={stat.label} className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
             <div className="flex items-center justify-between">
@@ -41,32 +45,54 @@ export default async function AdminDashboardPage() {
         ))}
       </div>
 
-      {/* Budget summary */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs space-y-4">
-        <h3 className="font-display font-bold text-slate-900 text-lg">Budget Overview (All Campaigns)</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Total Allocated</p>
-            <p className="font-display text-2xl font-bold text-slate-900 mt-1">{formatPaise(totalBudget)}</p>
+      {/* Admin Automated Operations & Verification */}
+      <section className="space-y-3">
+        <h3 className="font-display font-bold text-slate-900 text-lg">System Operations &amp; Verification</h3>
+        <AdminOperations />
+      </section>
+
+      {/* Quick Navigation Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Link
+          href="/rewards"
+          className="bg-white border border-slate-200/90 hover:border-emerald-300 rounded-2xl p-5 shadow-xs transition-all flex items-center justify-between group"
+        >
+          <div className="flex items-center gap-3">
+            <span className="p-2.5 rounded-xl bg-purple-50 text-purple-700">
+              <Gift className="w-5 h-5" />
+            </span>
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">
+                Public Rewards Store
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Preview active partner coupons and citizen redemption flow
+              </p>
+            </div>
           </div>
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Reserved</p>
-            <p className="font-display text-2xl font-bold text-amber-700 mt-1">{formatPaise(totalReserved)}</p>
+          <span className="text-slate-400 group-hover:text-emerald-700 transition-colors">→</span>
+        </Link>
+
+        <Link
+          href="/admin/impact"
+          className="bg-white border border-slate-200/90 hover:border-emerald-300 rounded-2xl p-5 shadow-xs transition-all flex items-center justify-between group"
+        >
+          <div className="flex items-center gap-3">
+            <span className="p-2.5 rounded-xl bg-blue-50 text-blue-700">
+              <ShieldCheck className="w-5 h-5" />
+            </span>
+            <div>
+              <h4 className="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">
+                Verified Impact &amp; Audit
+              </h4>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Review verified action counts, emission factors, and sources
+              </p>
+            </div>
           </div>
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-            <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold">Spent</p>
-            <p className="font-display text-2xl font-bold text-emerald-700 mt-1">{formatPaise(totalSpent)}</p>
-          </div>
-        </div>
-        <div className="mt-4">
-          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-            <div
-              className="bg-emerald-600 h-full rounded-full transition-all"
-              style={{ width: `${totalBudget > 0 ? (totalSpent / totalBudget) * 100 : 0}%` }}
-            />
-          </div>
-        </div>
+          <span className="text-slate-400 group-hover:text-emerald-700 transition-colors">→</span>
+        </Link>
       </div>
     </div>
-  )
+  );
 }

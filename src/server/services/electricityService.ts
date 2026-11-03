@@ -1,8 +1,11 @@
 import { prisma } from '@/server/db';
 import {
-  calculateEnergyBaseline,
-  evaluateEnergyReduction,
-} from '@/server/domain/telemetry';
+  evaluateElectricityReduction,
+  BillPeriodData,
+  ELECTRICITY_PROVIDER_NAME,
+} from '@/server/domain/electricityChallenge';
+import { appendDoubleEntry } from './walletService';
+import { computeAvailableAt } from '@/server/domain/pointsConfig';
 
 export interface AddBillInput {
   userId: string;
@@ -12,9 +15,12 @@ export interface AddBillInput {
   amountPaise: number;
   tariffPaisePerUnit?: number;
   source?: string;
+  imageUrl?: string;
 }
 
 export const electricityService = {
+  providerName: ELECTRICITY_PROVIDER_NAME,
+
   /**
    * Get user's connected energy devices and simulated smart plugs.
    */
@@ -30,7 +36,6 @@ export const electricityService = {
       orderBy: { createdAt: 'desc' },
     });
 
-    // Auto-seed demo simulated device if none exist for user
     if (devices.length === 0) {
       const demoPlug = await prisma.device.create({
         data: {
@@ -43,7 +48,6 @@ export const electricityService = {
         },
       });
 
-      // Add a couple of initial simulated readings
       await prisma.reading.createMany({
         data: [
           {
@@ -102,43 +106,62 @@ export const electricityService = {
       orderBy: { periodEnd: 'desc' },
     });
 
-    // If user has no bills yet, seed 3 historical bills to demonstrate the baseline calculator!
+    // If user has no bills yet, seed 4 historical bills (so there's baseline + latest testable bill)
     if (bills.length === 0) {
       const now = new Date();
-      const month3Ago = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-      const month2Ago = new Date(now.getFullYear(), now.getMonth() - 2, 1);
-      const month1Ago = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      // Bimonthly cycles (60 days each)
+      const b0End = new Date(now.getFullYear(), now.getMonth(), 0);
+      const b0Start = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+
+      const b1End = new Date(b0Start.getTime() - 1 * 24 * 3600 * 1000);
+      const b1Start = new Date(b1End.getTime() - 59 * 24 * 3600 * 1000);
+
+      const b2End = new Date(b1Start.getTime() - 1 * 24 * 3600 * 1000);
+      const b2Start = new Date(b2End.getTime() - 60 * 24 * 3600 * 1000);
+
+      const b3End = new Date(b2Start.getTime() - 1 * 24 * 3600 * 1000);
+      const b3Start = new Date(b3End.getTime() - 59 * 24 * 3600 * 1000);
 
       await prisma.bill.createMany({
         data: [
           {
             userId,
             type: 'ELECTRICITY',
-            periodStart: month3Ago,
-            periodEnd: new Date(now.getFullYear(), now.getMonth() - 2, 0),
-            units: 240, // 240 kWh
-            amountPaise: 168000, // ₹1,680
-            tariffPaisePerUnit: 700,
+            periodStart: b3Start,
+            periodEnd: b3End,
+            units: 520, // ~8.66 units/day
+            amountPaise: 270000,
+            tariffPaisePerUnit: 520,
             source: 'EXTRACTED',
           },
           {
             userId,
             type: 'ELECTRICITY',
-            periodStart: month2Ago,
-            periodEnd: new Date(now.getFullYear(), now.getMonth() - 1, 0),
-            units: 230, // 230 kWh
-            amountPaise: 161000, // ₹1,610
-            tariffPaisePerUnit: 700,
+            periodStart: b2Start,
+            periodEnd: b2End,
+            units: 490, // ~8.16 units/day
+            amountPaise: 254800,
+            tariffPaisePerUnit: 520,
             source: 'EXTRACTED',
           },
           {
             userId,
             type: 'ELECTRICITY',
-            periodStart: month1Ago,
-            periodEnd: new Date(now.getFullYear(), now.getMonth(), 0),
-            units: 200, // 200 kWh (15% reduction vs ~235 baseline!)
-            amountPaise: 140000, // ₹1,400
-            tariffPaisePerUnit: 700,
+            periodStart: b1Start,
+            periodEnd: b1End,
+            units: 510, // ~8.50 units/day
+            amountPaise: 265200,
+            tariffPaisePerUnit: 520,
+            source: 'EXTRACTED',
+          },
+          {
+            userId,
+            type: 'ELECTRICITY',
+            periodStart: b0Start,
+            periodEnd: b0End,
+            units: 440, // ~7.33 units/day (13.7% reduction vs ~8.44 baseline!)
+            amountPaise: 228800,
+            tariffPaisePerUnit: 520,
             source: 'MANUAL',
           },
         ],
@@ -172,30 +195,29 @@ export const electricityService = {
   },
 
   /**
-   * Evaluate user's energy reduction status vs baseline.
+   * Evaluate user's energy reduction status vs user's OWN actual baseline.
    */
   async evaluateBaselineStatus(userId: string) {
     const bills = await this.getBills(userId);
 
-    if (bills.length < 2) {
+    if (bills.length === 0) {
       return {
         hasSufficientHistory: false,
         baselineKwh: 0,
-        currentKwh: bills[0]?.units || 0,
-        billCount: bills.length,
+        currentKwh: 0,
+        billCount: 0,
         evaluation: null,
+        alreadyClaimed: false,
       };
     }
 
-    // Latest bill is current period, older bills form baseline
     const [latest, ...historical] = bills;
-    const historicalUnits = historical.map((b) => b.units);
 
-    // If historical bills count < 2 (total bills < 3), baseline is not fully established per the 3-cycle requirement
-    const baseline = calculateEnergyBaseline(historicalUnits, 2);
-    const evaluation = evaluateEnergyReduction(baseline.baselineKwh, latest.units, 10);
+    const evaluation = evaluateElectricityReduction(
+      latest as BillPeriodData,
+      historical as BillPeriodData[]
+    );
 
-    // Check if user already claimed reward for the current bill
     const alreadyClaimed = await prisma.ledgerEntry.findFirst({
       where: {
         userId,
@@ -205,18 +227,20 @@ export const electricityService = {
     });
 
     return {
-      hasSufficientHistory: baseline.hasSufficientHistory,
-      baselineKwh: baseline.baselineKwh,
+      hasSufficientHistory: evaluation.eligible,
+      baselineKwh: Math.round(evaluation.baselineUnitsPerDay * evaluation.currentPeriodDays),
       currentKwh: latest.units,
       billCount: bills.length,
       latestBillId: latest.id,
       evaluation,
       alreadyClaimed: Boolean(alreadyClaimed),
+      providerName: ELECTRICITY_PROVIDER_NAME,
     };
   },
 
   /**
-   * Claim ₹200 (20000 paise) campaign reward when 10% reduction challenge is met.
+   * Claim 150 Green Points reward when 10% reduction challenge is met.
+   * Reward is credited to USER_PENDING and awaits reviewer approval.
    */
   async claimReductionReward(userId: string, billId: string) {
     return await prisma.$transaction(async (tx) => {
@@ -241,26 +265,48 @@ export const electricityService = {
         throw new Error('Reward has already been claimed for this billing period');
       }
 
-      // Check campaign
+      // Re-verify eligibility inside transaction
+      const historicalBills = await tx.bill.findMany({
+        where: { userId, type: 'ELECTRICITY', id: { not: billId } },
+        orderBy: { periodEnd: 'desc' },
+      });
+
+      const evaluation = evaluateElectricityReduction(
+        bill as BillPeriodData,
+        historicalBills as BillPeriodData[]
+      );
+
+      if (!evaluation.achieved) {
+        throw new Error(evaluation.reason || '10% reduction target was not met');
+      }
+
       const campaign = await tx.campaign.findFirst({
         where: { section: 'ELECTRICITY', status: 'ACTIVE' },
       });
 
-      // Credit ₹200 (20000 paise)
-      const ledger = await tx.ledgerEntry.create({
-        data: {
-          userId,
-          campaignId: campaign?.id,
-          account: 'AVAILABLE',
-          amountPaise: 20000,
-          type: 'EARN_PENDING',
-          refType: 'ENERGY_REDUCTION',
-          refId: bill.id,
-          note: `Campus Energy Challenge: 10% Electricity reduction verified! (₹200 reward)`,
-        },
+      const availableAt = computeAvailableAt();
+
+      // Double-entry: SPONSOR_POOL -> USER_PENDING (150 Points)
+      await appendDoubleEntry(tx, {
+        debitAccount: 'SPONSOR_POOL',
+        creditAccount: 'USER_PENDING',
+        amountPoints: 150,
+        userId,
+        campaignId: campaign?.id,
+        type: 'EARN',
+        refType: 'ENERGY_REDUCTION',
+        refId: bill.id,
+        availableAt,
+        note: `TNPDCL 10% Energy Challenge: ${evaluation.reductionPercent}% reduction verified! (150 GP pending review)`,
       });
 
-      return ledger;
+      return {
+        success: true,
+        pointsAwarded: 150,
+        reductionPercent: evaluation.reductionPercent,
+        availableAt,
+        message: '150 Green Points credited to pending! Awaiting reviewer approval of utility bills.',
+      };
     });
   },
 };

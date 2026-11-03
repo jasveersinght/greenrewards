@@ -61,7 +61,7 @@ export default function DashboardPreview() {
                 type="button"
                 className="px-3 py-1 rounded-full bg-emerald-600 text-white font-medium text-[10px] shadow-sm flex items-center gap-1"
               >
-                <span>💰</span> Redeem Credits
+                <span>🎟️</span> Rewards Store
               </button>
               <div className="relative">
                 <Bell className="w-4 h-4 text-muted-foreground" />
@@ -96,7 +96,7 @@ export default function DashboardPreview() {
                     <span>Leak Hunter</span>
                   </div>
                   <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1 rounded">
-                    ₹250
+                    50 GP
                   </span>
                 </div>
                 <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-muted-foreground">
@@ -161,7 +161,7 @@ export default function DashboardPreview() {
                   <span className="rounded-full px-3 py-1 bg-emerald-600 text-white font-semibold text-[10px] shadow-sm">
                     💧 Report Leak
                   </span>
-                  {['🍱 Save Food', '🛍️ Scan Bag QR', '🚌 Metro Ticket', '⚡ Log Meter', '💸 Redeem Cash'].map((action) => (
+                  {['🍱 Save Food', '🛍️ Scan Bag QR', '🚌 Metro Ticket', '⚡ Log Meter', '🎟️ Redeem Coupon'].map((action) => (
                     <span
                       key={action}
                       className="rounded-full px-2.5 py-1 bg-background border border-border text-foreground font-medium text-[10px]"
@@ -183,27 +183,27 @@ export default function DashboardPreview() {
                     <div className="flex items-center justify-between text-muted-foreground">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                        <span className="font-medium text-foreground">Available Eco Wallet</span>
+                        <span className="font-medium text-foreground">Available Green Points</span>
                       </div>
                       <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                        Append-Only Ledger
+                        SHA-256 Ledger
                       </span>
                     </div>
 
                     <div className="mt-2 flex items-baseline gap-1">
                       <span className="text-xl font-bold tracking-tight text-foreground font-mono">
-                        ₹1,850
+                        480
                       </span>
-                      <span className="text-xs text-muted-foreground font-mono">.00</span>
+                      <span className="text-xs text-emerald-700 font-bold font-mono">GP</span>
                     </div>
 
                     <div className="flex items-center gap-2 mt-1 text-[10px]">
-                      <span className="text-muted-foreground">Last 30 Days:</span>
+                      <span className="text-muted-foreground">This Month:</span>
                       <span className="text-emerald-600 font-semibold flex items-center">
-                        <ArrowUpRight className="w-3 h-3" /> +₹2,400 earned
+                        <ArrowUpRight className="w-3 h-3" /> +320 GP earned
                       </span>
-                      <span className="text-red-500 font-semibold flex items-center">
-                        <ArrowDownLeft className="w-3 h-3" /> -₹550 redeemed
+                      <span className="text-purple-600 font-semibold flex items-center">
+                        <ArrowDownLeft className="w-3 h-3" /> -150 GP redeemed
                       </span>
                     </div>
                   </div>
@@ -268,7 +268,7 @@ export default function DashboardPreview() {
                         </div>
                       </div>
                       <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[10px]">
-                        ₹50 Voucher
+                        40 GP Bonus
                       </span>
                     </div>
 
@@ -281,7 +281,7 @@ export default function DashboardPreview() {
                         </div>
                       </div>
                       <span className="font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded text-[10px]">
-                        ₹100 Bounty
+                        25 GP Streak
                       </span>
                     </div>
 
@@ -294,7 +294,7 @@ export default function DashboardPreview() {
                         </div>
                       </div>
                       <span className="font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded text-[10px]">
-                        ₹200 Bonus
+                        150 GP Challenge
                       </span>
                     </div>
                   </div>
@@ -336,7 +336,7 @@ export default function DashboardPreview() {
                     <tr>
                       <td className="py-1.5 text-muted-foreground">Yesterday, 4:15 PM</td>
                       <td className="py-1.5 font-medium text-foreground">Potheri Junction — Public Pipe Leak Bounty</td>
-                      <td className="py-1.5 font-semibold text-emerald-700 font-mono">+₹100.00 Wallet</td>
+                      <td className="py-1.5 font-semibold text-emerald-700 font-mono">+50 GP Wallet</td>
                       <td className="py-1.5 text-right">
                         <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 border border-blue-500/20 font-medium">
                           Verified by Reviewer
@@ -346,7 +346,7 @@ export default function DashboardPreview() {
                     <tr>
                       <td className="py-1.5 text-muted-foreground">Oct 24</td>
                       <td className="py-1.5 font-medium text-foreground">Annapoorna Kitchen — Surplus Meal Rescued</td>
-                      <td className="py-1.5 font-semibold text-foreground font-mono">₹49 (Saved 60%) + ₹10 Eco</td>
+                      <td className="py-1.5 font-semibold text-foreground font-mono">₹49 meal + 15 GP</td>
                       <td className="py-1.5 text-right">
                         <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 font-medium">
                           ✓ Picked Up

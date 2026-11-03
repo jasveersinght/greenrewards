@@ -1,15 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
-  },
+  serverExternalPackages: [
+    'better-sqlite3',
+    '@prisma/adapter-better-sqlite3',
+    'bcryptjs',
+  ],
 };
 
 export default nextConfig;

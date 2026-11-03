@@ -99,11 +99,16 @@ export async function verifyOtpCode(
 
   const valid = await verifyOtp(code, attempt.codeHash)
   if (!valid) {
+    const nextAttempts = attempt.attempts + 1
+    const isNowLocked = nextAttempts >= 5
     await prisma.otpAttempt.update({
       where: { id: attempt.id },
-      data: { attempts: { increment: 1 } },
+      data: {
+        attempts: nextAttempts,
+        ...(isNowLocked ? { usedAt: new Date() } : {}),
+      },
     })
-    return { success: false, error: 'INVALID' }
+    return { success: false, error: isNowLocked ? 'LOCKED' : 'INVALID' }
   }
 
   // Mark used

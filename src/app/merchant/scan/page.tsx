@@ -1,154 +1,467 @@
-'use client'
+'use client';
 
-import React, { useState } from 'react'
-import Link from 'next/link'
-import QrScanner from '@/components/shared/QrScanner'
-import { ArrowLeft, CheckCircle2, QrCode } from 'lucide-react'
+import React, { useState } from 'react';
+import Link from 'next/link';
+import QrScanner from '@/components/shared/QrScanner';
+import { ArrowLeft, CheckCircle2, QrCode, Tag, RotateCcw, Utensils, AlertCircle } from 'lucide-react';
 
 export default function MerchantScanPage() {
-  const [mode, setMode] = useState<'REUSE' | 'FOOD'>('REUSE')
-  const [claimData, setClaimData] = useState<any>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [receiptRef, setReceiptRef] = useState('')
-  const [confirming, setConfirming] = useState(false)
-  const [confirmResult, setConfirmResult] = useState<any>(null)
+  const [mode, setMode] = useState<'REUSE' | 'COUPON' | 'FOOD'>('REUSE');
+  const [claimData, setClaimData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [receiptRef, setReceiptRef] = useState('');
+  const [confirming, setConfirming] = useState(false);
+  const [confirmResult, setConfirmResult] = useState<any>(null);
+
+  // Coupon state
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [couponDetails, setCouponDetails] = useState<any>(null);
+  const [couponSuccess, setCouponSuccess] = useState<any>(null);
 
   // Food pickup state
-  const [foodCode, setFoodCode] = useState('')
-  const [foodResult, setFoodResult] = useState<any>(null)
+  const [foodCode, setFoodCode] = useState('');
+  const [foodResult, setFoodResult] = useState<any>(null);
 
-  // Lookup claim on scan or code submission
-  async function handleScan(codeOrOpaqueId: string) {
+  // Lookup claim or coupon on scan or code submission
+  async function handleScan(scannedText: string) {
     if (mode === 'FOOD') {
-      handleConfirmFood(codeOrOpaqueId)
-      return
+      handleConfirmFood(scannedText);
+      return;
     }
 
-    setLoading(true)
-    setError(null)
-    setConfirmResult(null)
+    if (mode === 'COUPON') {
+      handleLookupCoupon(scannedText);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setConfirmResult(null);
 
     try {
-      const res = await fetch(`/api/claims/${encodeURIComponent(codeOrOpaqueId)}`)
-      const data = await res.json()
+      const res = await fetch(`/api/claims/${encodeURIComponent(scannedText)}`);
+      const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? 'Claim not found or invalid.')
-        setClaimData(null)
-        return
+        setError(data.error ?? 'Claim not found or invalid.');
+        setClaimData(null);
+        return;
       }
 
-      setClaimData(data)
+      setClaimData(data);
     } catch (err: any) {
-      setError(err?.message ?? 'Failed to look up claim.')
+      setError(err?.message ?? 'Failed to look up claim.');
     } finally {
-      setLoading(false)
+      setLoading(false);
+    }
+  }
+
+  // Lookup Coupon
+  async function handleLookupCoupon(codeToLookup?: string) {
+    const code = (codeToLookup || couponCodeInput).trim().toUpperCase();
+    if (!code) {
+      setError('Please enter or scan a coupon code');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setCouponDetails(null);
+    setCouponSuccess(null);
+
+    try {
+      const res = await fetch('/api/merchant/coupons/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Coupon code not found or invalid');
+        return;
+      }
+      setCouponDetails(data);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to verify coupon');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Use / Mark Coupon as Redeemed
+  async function handleUseCoupon() {
+    if (!couponDetails) return;
+    setConfirming(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/merchant/coupons/use', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponDetails.code }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to mark coupon as used');
+        return;
+      }
+      setCouponSuccess(data);
+      setCouponDetails(null);
+      setCouponCodeInput('');
+    } catch (err: any) {
+      setError(err?.message || 'Error occurred while redeeming coupon');
+    } finally {
+      setConfirming(false);
     }
   }
 
   // Confirm food pickup
   async function handleConfirmFood(codeToUse?: string) {
-    const targetCode = (codeToUse || foodCode).trim().toUpperCase()
+    const targetCode = (codeToUse || foodCode).trim().toUpperCase();
     if (!targetCode) {
-      setError('Please enter a 4-character pickup code')
-      return
+      setError('Please enter a 4-character pickup code');
+      return;
     }
 
-    setConfirming(true)
-    setError(null)
-    setFoodResult(null)
+    setConfirming(true);
+    setError(null);
+    setFoodResult(null);
 
     try {
       const res = await fetch(`/api/food/reservations/${encodeURIComponent(targetCode)}/confirm`, {
         method: 'POST',
-      })
-      const data = await res.json()
+      });
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error ?? 'Failed to confirm food pickup')
+        throw new Error(data.error ?? 'Failed to confirm food pickup');
       }
-      setFoodResult(data.reservation)
-      setFoodCode('')
+      setFoodResult(data.reservation);
+      setFoodCode('');
     } catch (err: any) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setConfirming(false)
+      setConfirming(false);
     }
   }
 
-  // Confirm claim
-  async function handleConfirm() {
-    if (!claimData) return
-    setConfirming(true)
-    setError(null)
+  // Confirm reuse claim
+  async function handleConfirmReuse() {
+    if (!claimData) return;
+    setConfirming(true);
+    setError(null);
 
     try {
       const res = await fetch(`/api/claims/${claimData.claim.opaqueId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ receiptRef: receiptRef.trim() || undefined }),
-      })
-      const data = await res.json()
+      });
+      const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error ?? 'Failed to confirm stamp')
-        return
+        setError(data.error ?? 'Failed to confirm stamp');
+        return;
       }
 
-      setConfirmResult(data)
-      setClaimData(null)
-      setReceiptRef('')
+      setConfirmResult(data);
+      setClaimData(null);
+      setReceiptRef('');
     } catch (err: any) {
-      setError(err?.message ?? 'An error occurred during confirmation.')
+      setError(err?.message ?? 'An error occurred during confirmation.');
     } finally {
-      setConfirming(false)
+      setConfirming(false);
     }
   }
 
   function handleReset() {
-    setClaimData(null)
-    setConfirmResult(null)
-    setFoodResult(null)
-    setError(null)
-    setReceiptRef('')
-    setFoodCode('')
+    setClaimData(null);
+    setConfirmResult(null);
+    setCouponDetails(null);
+    setCouponSuccess(null);
+    setFoodResult(null);
+    setError(null);
+    setReceiptRef('');
+    setFoodCode('');
+    setCouponCodeInput('');
   }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-16 font-body">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-slate-900 flex items-center gap-2">
             <span>📷</span>
-            <span>Counter Verification</span>
+            <span>Counter Terminal</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Verify reusable bags or confirm surplus food pickups
+            Verify reusable bags, redeem customer coupons, or confirm surplus meals
           </p>
         </div>
 
+        {/* Mode Selector */}
         <div className="flex bg-slate-100 p-1 rounded-xl text-xs border border-slate-200">
           <button
             type="button"
             onClick={() => { setMode('REUSE'); handleReset(); }}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1 ${
               mode === 'REUSE' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            ♻️ Reusable
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Reuse Stamp</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode('COUPON'); handleReset(); }}
+            className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1 ${
+              mode === 'COUPON' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            <Tag className="w-3.5 h-3.5" />
+            <span>Redeem Coupon</span>
           </button>
           <button
             type="button"
             onClick={() => { setMode('FOOD'); handleReset(); }}
-            className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1 ${
               mode === 'FOOD' ? 'bg-white text-emerald-800 shadow-xs' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            🍱 Food Pickup
+            <Utensils className="w-3.5 h-3.5" />
+            <span>Food Pickup</span>
           </button>
         </div>
       </div>
 
+      {error && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold rounded-2xl flex items-start gap-2 shadow-xs">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-semibold">Terminal Alert</p>
+            <p className="mt-0.5 text-rose-700">{error}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="text-slate-400 hover:text-slate-700 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* MODE 1: REDEEM COUPON */}
+      {mode === 'COUPON' && (
+        <div className="space-y-4">
+          {couponSuccess ? (
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 text-center shadow-xs">
+              <div className="w-16 h-16 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 border border-emerald-200 shadow-xs">
+                ✓
+              </div>
+              <h2 className="font-display text-2xl font-bold text-slate-900">Coupon Successfully Redeemed!</h2>
+              <div className="text-emerald-700 font-extrabold text-lg mt-1">
+                {couponSuccess.faceValueText}
+              </div>
+              <p className="text-xs sm:text-sm text-slate-600 mt-2 font-medium">
+                Discount applied. Coupon has been marked as used and reserved Green Points redeemed.
+              </p>
+              <div className="my-5 p-4 bg-slate-50 rounded-2xl text-xs text-left border border-slate-200 space-y-1.5 font-mono">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Coupon Code:</span>
+                  <span className="font-bold text-slate-900">{couponSuccess.code}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Points Redeemed:</span>
+                  <span className="text-emerald-800 font-bold">{couponSuccess.pointsSpent} GP</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm cursor-pointer"
+              >
+                Scan Next Coupon →
+              </button>
+            </div>
+          ) : couponDetails ? (
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                    {couponDetails.funderName}
+                  </span>
+                  <h3 className="text-xl font-bold text-slate-900 mt-1">{couponDetails.title}</h3>
+                  <div className="text-emerald-700 font-black text-lg mt-0.5">
+                    {couponDetails.faceValueText}
+                  </div>
+                </div>
+                <span
+                  className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                    couponDetails.canBeUsed
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}
+                >
+                  {couponDetails.canBeUsed ? 'VALID' : couponDetails.status}
+                </span>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-2 mb-6">
+                <div className="flex justify-between text-slate-600">
+                  <span>Customer:</span>
+                  <span className="font-bold text-slate-900">{couponDetails.customerName}</span>
+                </div>
+                {couponDetails.minSpendText && (
+                  <div className="flex justify-between text-slate-600">
+                    <span>Minimum Spend:</span>
+                    <span className="font-bold text-slate-900">{couponDetails.minSpendText}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-slate-600">
+                  <span>Valid Until:</span>
+                  <span className="font-bold text-slate-900">
+                    {couponDetails.expiresAt
+                      ? new Date(couponDetails.expiresAt).toLocaleDateString('en-IN')
+                      : 'No Expiry'}
+                  </span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Code:</span>
+                  <span className="font-mono font-bold text-slate-900">{couponDetails.code}</span>
+                </div>
+              </div>
+
+              {couponDetails.canBeUsed ? (
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    disabled={confirming}
+                    onClick={handleUseCoupon}
+                    className="flex-1 py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {confirming ? 'Redeeming...' : '✓ Mark as Used'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="py-3.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-sm transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl mb-4 text-center font-bold">
+                    This coupon cannot be redeemed ({couponDetails.status}).
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition"
+                  >
+                    Back to Scan
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <QrScanner
+                onScan={(code) => handleScan(code)}
+              />
+
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-5 text-center shadow-xs">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-2">
+                  Or Enter 8-Character Code Manually
+                </span>
+                <div className="flex gap-2 max-w-sm mx-auto">
+                  <input
+                    type="text"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                    placeholder="e.g. ECO-4892"
+                    className="flex-1 bg-slate-50 border border-slate-200 focus:border-emerald-600 rounded-xl px-3 py-2 text-center font-mono font-bold text-sm uppercase outline-none"
+                  />
+                  <button
+                    type="button"
+                    disabled={loading || !couponCodeInput.trim()}
+                    onClick={() => handleLookupCoupon()}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition disabled:opacity-50"
+                  >
+                    {loading ? 'Checking...' : 'Verify'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODE 2: REUSE STAMPS */}
+      {mode === 'REUSE' && (
+        <div className="space-y-4">
+          {confirmResult ? (
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 text-center shadow-xs">
+              <div className="w-16 h-16 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 border border-emerald-200 shadow-xs">
+                ✓
+              </div>
+              <h2 className="font-display text-2xl font-bold text-slate-900">Stamp Successfully Awarded!</h2>
+              <p className="text-sm text-emerald-800 mt-2 font-medium">
+                {confirmResult.message}
+              </p>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="w-full mt-6 py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm cursor-pointer"
+              >
+                Scan Next Customer →
+              </button>
+            </div>
+          ) : claimData ? (
+            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs">
+              <h3 className="text-xl font-bold text-slate-900 mb-1">{claimData.offer?.name}</h3>
+              <p className="text-xs text-slate-500 mb-4">Customer: {claimData.user?.displayName || 'Citizen'}</p>
+
+              <div className="mb-4">
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Receipt Reference (Optional)</label>
+                <input
+                  type="text"
+                  value={receiptRef}
+                  onChange={(e) => setReceiptRef(e.target.value)}
+                  placeholder="e.g. BILL-9821"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  disabled={confirming}
+                  onClick={handleConfirmReuse}
+                  className="flex-1 py-3 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  {confirming ? 'Confirming...' : '✓ Confirm Stamp'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="py-3 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <QrScanner
+              onScan={(code) => handleScan(code)}
+            />
+          )}
+        </div>
+      )}
+
+      {/* MODE 3: FOOD PICKUP */}
       {mode === 'FOOD' && (
         <div className="space-y-4">
           {foodResult ? (
@@ -158,22 +471,12 @@ export default function MerchantScanPage() {
               </div>
               <h2 className="font-display text-2xl font-bold text-slate-900">Food Pickup Verified!</h2>
               <p className="text-xs sm:text-sm text-emerald-800 mt-1 font-medium">
-                Meal handed to customer. ₹10 Food Saver reward credited to customer wallet.
+                Meal handed to customer. 15 Green Points pending settlement.
               </p>
-              <div className="my-5 p-4 bg-slate-50 rounded-2xl text-xs text-left border border-slate-200 space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Pickup Code:</span>
-                  <span className="font-mono font-bold text-slate-900">{foodResult.pickupCode}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Status:</span>
-                  <span className="text-emerald-800 font-bold">{foodResult.status}</span>
-                </div>
-              </div>
               <button
                 type="button"
                 onClick={handleReset}
-                className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm cursor-pointer"
+                className="w-full mt-6 py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl transition text-sm shadow-sm cursor-pointer"
               >
                 Verify Another Pickup →
               </button>
@@ -209,160 +512,6 @@ export default function MerchantScanPage() {
           )}
         </div>
       )}
-
-      {mode === 'REUSE' && (
-        <>
-          {error && (
-            <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold rounded-2xl flex items-start gap-2 shadow-xs">
-              <span className="text-base shrink-0">⚠️</span>
-              <div className="flex-1">
-                <p className="font-semibold">Verification Alert</p>
-                <p className="mt-0.5 text-rose-700">{error}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setError(null)}
-                className="text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-          )}
-
-          {/* Confirmation Success View */}
-          {confirmResult && (
-            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 text-center shadow-xs">
-              <div className="w-16 h-16 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 border border-emerald-200 shadow-xs">
-                ✓
-              </div>
-              <h2 className="font-display text-2xl font-bold text-slate-900">Stamp Successfully Awarded!</h2>
-              <p className="text-sm text-emerald-800 mt-2 font-medium">
-                {confirmResult.message}
-              </p>
-
-              {confirmResult.voucherIssued && (
-                <div className="my-5 p-4 bg-amber-50 border border-amber-200 rounded-2xl">
-                  <span className="text-2xl block mb-1">🎉</span>
-                  <p className="font-bold text-amber-900 text-sm">Customer Earned a Voucher!</p>
-                  <p className="text-xs text-amber-700 mt-1">
-                    Value: ₹{(confirmResult.voucherValuePaise / 100).toFixed(0)} credited to customer&apos;s wallet.
-                  </p>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={handleReset}
-                className="w-full mt-6 py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl text-sm transition shadow-sm cursor-pointer"
-              >
-                Scan Next Customer →
-              </button>
-            </div>
-          )}
-
-          {/* Claim Detail Preview (Before Confirmation) */}
-          {!confirmResult && claimData && (
-            <div className="bg-white border border-slate-200/90 rounded-3xl p-6 space-y-4 shadow-xs">
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs uppercase tracking-wider text-emerald-700 font-bold">
-                    Customer Found
-                  </span>
-                  <h2 className="font-display text-xl font-bold text-slate-900 mt-0.5">
-                    {claimData.user.displayName}
-                  </h2>
-                  <p className="text-xs text-slate-500">{claimData.user.locality}</p>
-                </div>
-
-                <span className={`px-3 py-1 text-xs rounded-full font-bold border ${
-                  claimData.validation.valid
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border-rose-200'
-                }`}>
-                  {claimData.validation.valid ? 'Valid Code' : claimData.validation.error}
-                </span>
-              </div>
-
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Offer:</span>
-                  <span className="text-slate-900 font-semibold">{claimData.offer.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Current Progress:</span>
-                  <span className="text-emerald-800 font-bold">
-                    {claimData.currentStamps} / {claimData.offer.stampsNeeded} stamps
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Code:</span>
-                  <span className="text-slate-900 font-mono font-bold tracking-widest">{claimData.claim.code}</span>
-                </div>
-              </div>
-
-              {claimData.validation.valid ? (
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <label htmlFor="receipt-ref-input" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Bill / Receipt Reference (Optional)
-                    </label>
-                    <input
-                      id="receipt-ref-input"
-                      type="text"
-                      value={receiptRef}
-                      onChange={(e) => setReceiptRef(e.target.value)}
-                      placeholder="e.g. BILL-9042"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-slate-900 text-sm focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <button
-                    type="button"
-                    id="confirm-stamp-btn"
-                    disabled={confirming}
-                    onClick={handleConfirm}
-                    className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-600 text-white font-semibold rounded-xl text-sm transition shadow-sm cursor-pointer disabled:opacity-50"
-                  >
-                    {confirming ? 'Confirming...' : '✓ Confirm & Award Stamp'}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="w-full py-2 text-xs text-slate-500 hover:text-slate-800 cursor-pointer"
-                  >
-                    Cancel / Choose Another
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={handleReset}
-                    className="py-2.5 px-6 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
-                  >
-                    ← Scan Another Code
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Scanner & Manual Input View (Initial State) */}
-          {!confirmResult && !claimData && (
-            <div className="space-y-4">
-              {loading ? (
-                <div className="p-8 text-center text-slate-400 bg-white border border-slate-200/90 rounded-3xl shadow-xs">
-                  <div className="animate-spin text-3xl inline-block mb-3">🔍</div>
-                  <p className="text-sm font-medium">Looking up claim code...</p>
-                </div>
-              ) : (
-                <QrScanner onScan={handleScan} />
-              )}
-            </div>
-          )}
-        </>
-      )}
     </div>
-  )
+  );
 }

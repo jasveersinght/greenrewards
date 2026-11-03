@@ -1,13 +1,17 @@
 import React from 'react';
 import { impactService } from '@/server/services/impactService';
+import { getSponsorCouponMetrics } from '@/server/services/couponService';
 import { getSession } from '@/server/session';
-import { ShieldCheck, BarChart3, MapPin, Users } from 'lucide-react';
+import { ShieldCheck, BarChart3, MapPin, Users, Gift, Tag } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SponsorPage() {
   const session = await getSession();
-  const report = await impactService.getSponsorReport(session?.partnerIds?.[0]);
+  const [report, couponMetrics] = await Promise.all([
+    impactService.getSponsorReport(session?.partnerIds?.[0]),
+    getSponsorCouponMetrics(),
+  ]);
 
   return (
     <div className="space-y-8 font-body">
@@ -15,70 +19,63 @@ export default async function SponsorPage() {
       <div className="bg-gradient-to-r from-emerald-50 via-white to-slate-50 border border-emerald-200/80 rounded-2xl p-6 sm:p-8 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <span className="text-xs uppercase font-bold text-emerald-800 tracking-wider">
-            Funder Organization
+            Sponsor &amp; Brand Funder Portal
           </span>
           <h2 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 mt-1">
-            {report.sponsor?.name || 'Chennai Metro Water & City Sponsors'}
+            {report.sponsor?.name || 'Chennai Metro Sustainability Partners'}
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Category: {report.sponsor?.type || 'Civic Infrastructure Funder'} · Status: Active Verified Partner
+            Category: {report.sponsor?.type || 'CSR / Brand Partner'} · Privacy Tier: High (k-Anonymity)
           </p>
         </div>
 
         <div className="text-left sm:text-right bg-white sm:bg-transparent p-4 sm:p-0 rounded-xl border sm:border-0 border-slate-200">
-          <span className="text-xs text-slate-500 block">Total Sponsored Campaigns</span>
+          <span className="text-xs text-slate-500 block">Total Funded Coupons</span>
           <span className="font-display text-3xl font-bold text-slate-900 mt-0.5 block">
-            {report.campaigns.length}
+            {couponMetrics.totalFundedStock}
           </span>
         </div>
       </div>
 
-      {/* Campaign Budget Utilization */}
+      {/* Coupon Utilization Overview */}
       <section className="space-y-4">
         <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
-          <span>📊</span> Budget Utilization &amp; Impact Delivery
+          <Gift className="w-4 h-4 text-emerald-600" />
+          <span>Coupon Store Utilization &amp; Redemption Rate</span>
         </h3>
 
-        <div className="grid gap-4">
-          {report.campaigns.map((c) => (
-            <div
-              key={c.id}
-              className="bg-white border border-slate-200/90 rounded-2xl p-6 space-y-4 shadow-xs"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-display font-bold text-slate-900 text-lg">{c.name}</h4>
-                    <span className="text-[10px] font-bold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full uppercase border border-slate-200">
-                      {c.section}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {c.totalClaims} verified citizen actions funded
-                  </p>
-                </div>
-
-                <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-                  {c.percentSpent}% Disbursed
-                </span>
-              </div>
-
-              {/* Progress bar */}
-              <div className="space-y-2">
-                <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-emerald-600 h-full rounded-full transition-all"
-                    style={{ width: `${c.percentSpent}%` }}
-                  />
-                </div>
-                <div className="flex justify-between text-xs text-slate-600 font-mono">
-                  <span>Spent: ₹{(c.spentPaise / 100).toLocaleString()}</span>
-                  <span>Remaining: ₹{(c.remainingPaise / 100).toLocaleString()}</span>
-                  <span className="text-slate-900 font-bold">Total: ₹{(c.totalPaise / 100).toLocaleString()}</span>
-                </div>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Coupons Issued</span>
+            <div className="font-display text-3xl font-bold text-slate-900 mt-2">
+              {couponMetrics.totalIssued}
             </div>
-          ))}
+            <p className="text-xs text-slate-500 mt-1">Claimed by citizens using points</p>
+          </div>
+
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Coupons Used at Merchants</span>
+            <div className="font-display text-3xl font-bold text-emerald-700 mt-2">
+              {couponMetrics.totalUsed}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Confirmed by merchant counter</p>
+          </div>
+
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Remaining Stock</span>
+            <div className="font-display text-3xl font-bold text-slate-900 mt-2">
+              {couponMetrics.remainingStock}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Available in rewards catalog</p>
+          </div>
+
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Redemption Rate</span>
+            <div className="font-display text-3xl font-bold text-purple-700 mt-2">
+              {couponMetrics.redemptionRatePercent}%
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Used vs claimed coupon ratio</p>
+          </div>
         </div>
       </section>
 

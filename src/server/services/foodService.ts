@@ -6,6 +6,8 @@ import {
   generatePickupCode,
   sanitizeDietTags,
 } from '@/server/domain/food';
+import { appendDoubleEntry } from './walletService';
+import { computeAvailableAt, POINTS_CONFIG } from '@/server/domain/pointsConfig';
 
 export interface CreateListingInput {
   partnerId: string;
@@ -225,29 +227,44 @@ export const foodService = {
         throw new Error(`Reservation is already ${reservation.status.toLowerCase()}`);
       }
 
-      // Mark confirmed
-      const updated = await tx.reservation.update({
-        where: { id: reservation.id },
+      const now = new Date();
+
+      // Atomic conditional update to mark confirmed
+      const updateRes = await tx.reservation.updateMany({
+        where: {
+          id: reservation.id,
+          status: 'ACTIVE',
+          expiresAt: { gt: now },
+        },
         data: {
           status: 'CONFIRMED',
-          confirmedAt: new Date(),
+          confirmedAt: now,
         },
       });
 
-      // Credit ₹10 (1000 paise) Food Saver reward to citizen wallet
-      await tx.ledgerEntry.create({
-        data: {
-          userId: reservation.userId,
-          account: 'AVAILABLE',
-          amountPaise: 1000,
-          type: 'EARN_PENDING',
-          refType: 'FOOD_RESCUE',
-          refId: reservation.id,
-          note: `Food Rescue verified pickup: ${reservation.listing.item} (₹10 eco-reward)`,
-        },
+      if (updateRes.count !== 1) {
+        throw new Error('RESERVATION_ALREADY_CONFIRMED_OR_EXPIRED');
+      }
+
+      // Credit 15 Green Points reward to citizen wallet (USER_PENDING)
+      const availableAt = computeAvailableAt();
+      await appendDoubleEntry(tx, {
+        debitAccount: 'SPONSOR_POOL',
+        creditAccount: 'USER_PENDING',
+        amountPoints: POINTS_CONFIG.EARNING.FOOD_PICKUP_COMPLETED,
+        userId: reservation.userId,
+        type: 'EARN',
+        refType: 'FOOD_RESCUE',
+        refId: reservation.id,
+        availableAt,
+        note: `Food Rescue verified pickup: ${reservation.listing.item} (15 GP)`,
       });
 
-      return updated;
+      return {
+        ...reservation,
+        status: 'CONFIRMED',
+        confirmedAt: now,
+      };
     });
   },
 

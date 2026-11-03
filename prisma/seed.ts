@@ -33,6 +33,7 @@ async function grantRole(userId: string, role: string, partnerId?: string, grant
 
 async function main() {
   console.log('🌱 Seeding Green Rewards database...')
+  await prisma.$executeRawUnsafe('CREATE UNIQUE INDEX IF NOT EXISTS CouponCode_code_key ON CouponCode(code);')
 
   // ──────────────────────────────────────────────────────────────
   // 1. LOCATIONS (~10 near SRM IST Kattankulathur)
@@ -332,25 +333,38 @@ async function main() {
       },
       {
         userId: userDemo.id,
-        campaignId: leakCampaign.id,
-        account: 'PENDING',
-        stamps: null,
-        amountPaise: 10000,
-        type: 'EARN_PENDING',
+        account: 'USER_AVAILABLE',
+        amountPoints: 500,
+        amountPaise: null,
+        entrySide: 'CREDIT',
+        type: 'EARN',
+        refType: 'SeedGrant',
+        refId: 'seed-welcome-grant',
+        note: 'Welcome Demo Green Points Grant (500 GP)',
+      },
+      {
+        userId: userDemo.id,
+        account: 'USER_PENDING',
+        amountPoints: 50,
+        amountPaise: null,
+        entrySide: 'CREDIT',
+        availableAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+        type: 'EARN',
         refType: 'LeakCase',
-        refId: 'seed-leak-1',
-        note: 'Accepted leak report bounty (seed)',
+        refId: 'seed-leak-lot',
+        note: 'Accepted leak report pending lot',
       },
       {
         userId: user2Demo.id,
         campaignId: foodCampaign.id,
-        account: 'AVAILABLE',
-        stamps: null,
-        amountPaise: 3000,
-        type: 'APPROVE_PENDING',
+        account: 'USER_AVAILABLE',
+        amountPoints: 15,
+        amountPaise: null,
+        entrySide: 'CREDIT',
+        type: 'EARN',
         refType: 'Reservation',
         refId: 'seed-res-1',
-        note: 'Food pickup cashback approved (seed)',
+        note: 'Food pickup reward approved (seed)',
       },
     ],
   })
@@ -480,6 +494,182 @@ async function main() {
     },
     update: {},
   })
+
+  // ──────────────────────────────────────────────────────────────
+  // 9. REWARDS STORE: FUNDERS, CATALOG & COUPON CODES
+  // ──────────────────────────────────────────────────────────────
+  console.log('  🎁 Seeding Coupon Store...')
+
+  const funderFreshMart = await prisma.funder.upsert({
+    where: { id: 'funder-freshmart' },
+    create: {
+      id: 'funder-freshmart',
+      name: 'FreshMart Grocery',
+      type: 'MERCHANT',
+      isSimulated: true,
+    },
+    update: {},
+  })
+
+  const funderEcoBrand = await prisma.funder.upsert({
+    where: { id: 'funder-ecobrand' },
+    create: {
+      id: 'funder-ecobrand',
+      name: 'EcoBrand CSR',
+      type: 'SPONSOR',
+      isSimulated: true,
+    },
+    update: {},
+  })
+
+  const funderGreenBite = await prisma.funder.upsert({
+    where: { id: 'funder-greenbite' },
+    create: {
+      id: 'funder-greenbite',
+      name: 'GreenBite Organic',
+      type: 'BRAND',
+      isSimulated: true,
+    },
+    update: {},
+  })
+
+  const couponsSeedData = [
+    {
+      id: 'item-fm-30',
+      funderId: funderFreshMart.id,
+      title: '₹30 Off on Grocery Basket',
+      description: 'Get ₹30 off on any purchase of ₹300 or more at FreshMart grocery stores in Kattankulathur and Potheri.',
+      pointsPrice: 100,
+      faceValueText: '₹30 off on ₹300+',
+      minSpendText: 'Min spend ₹300',
+      validMerchantIds: freshMart.id,
+      stockTotal: 40,
+      stockRemaining: 40,
+      perUserLimit: 2,
+      validUntil: in60days,
+      kind: 'PLATFORM_QR' as const,
+      codePrefix: 'FM30',
+    },
+    {
+      id: 'item-fm-50',
+      funderId: funderFreshMart.id,
+      title: '₹50 Off Super Saver Grocery Basket',
+      description: 'Save ₹50 on essential staples, fresh vegetables, and grains when spending ₹500 or more at FreshMart.',
+      pointsPrice: 180,
+      faceValueText: '₹50 off on ₹500+',
+      minSpendText: 'Min spend ₹500',
+      validMerchantIds: freshMart.id,
+      stockTotal: 30,
+      stockRemaining: 30,
+      perUserLimit: 1,
+      validUntil: in60days,
+      kind: 'PLATFORM_QR' as const,
+      codePrefix: 'FM50',
+    },
+    {
+      id: 'item-eco-home',
+      funderId: funderEcoBrand.id,
+      title: '₹100 Off Eco-Friendly Home Kit',
+      description: 'Redeem for ₹100 discount on bamboo cookware, reusable storage bags, and biodegradable cleaner sets.',
+      pointsPrice: 300,
+      faceValueText: '₹100 off on ₹600+',
+      minSpendText: 'Min spend ₹600',
+      validMerchantIds: 'online code',
+      stockTotal: 25,
+      stockRemaining: 25,
+      perUserLimit: 1,
+      validUntil: in60days,
+      kind: 'IMPORTED_CODE' as const,
+      codePrefix: 'ECOKIT',
+    },
+    {
+      id: 'item-eco-20pct',
+      funderId: funderEcoBrand.id,
+      title: '20% Off EcoBrand Sustainable Apparel',
+      description: 'Receive 20% discount (up to ₹200 off) on organic cotton shirts, canvas totes, and bamboo fiber apparel.',
+      pointsPrice: 250,
+      faceValueText: '20% off up to ₹200',
+      minSpendText: 'No minimum spend',
+      validMerchantIds: 'online code',
+      stockTotal: 35,
+      stockRemaining: 35,
+      perUserLimit: 2,
+      validUntil: in60days,
+      kind: 'IMPORTED_CODE' as const,
+      codePrefix: 'ECO20',
+    },
+    {
+      id: 'item-gb-75',
+      funderId: funderGreenBite.id,
+      title: '₹75 Off Organic Farm Fresh Basket',
+      description: 'Enjoy ₹75 savings on locally sourced chemical-free seasonal fruits and vegetables from GreenBite farms.',
+      pointsPrice: 220,
+      faceValueText: '₹75 off on ₹450+',
+      minSpendText: 'Min spend ₹450',
+      validMerchantIds: null,
+      stockTotal: 30,
+      stockRemaining: 30,
+      perUserLimit: 1,
+      validUntil: in60days,
+      kind: 'PLATFORM_QR' as const,
+      codePrefix: 'GB75',
+    },
+    {
+      id: 'item-gb-juice',
+      funderId: funderGreenBite.id,
+      title: 'Free Cold-Pressed Citrus Juice on ₹250+',
+      description: 'Complimentary 300ml cold-pressed seasonal citrus juice (₹60 menu value) with any fresh sandwich or meal order.',
+      pointsPrice: 150,
+      faceValueText: 'Free Juice (₹60 value)',
+      minSpendText: 'Min spend ₹250',
+      validMerchantIds: null,
+      stockTotal: 30,
+      stockRemaining: 30,
+      perUserLimit: 2,
+      validUntil: in60days,
+      kind: 'PLATFORM_QR' as const,
+      codePrefix: 'JUICE',
+    },
+  ]
+
+  for (const c of couponsSeedData) {
+    const item = await prisma.couponCatalogItem.upsert({
+      where: { id: c.id },
+      create: {
+        id: c.id,
+        funderId: c.funderId,
+        title: c.title,
+        description: c.description,
+        pointsPrice: c.pointsPrice,
+        faceValueText: c.faceValueText,
+        minSpendText: c.minSpendText,
+        validMerchantIds: c.validMerchantIds,
+        stockTotal: c.stockTotal,
+        stockRemaining: c.stockRemaining,
+        perUserLimit: c.perUserLimit,
+        validUntil: c.validUntil,
+        kind: c.kind,
+        isActive: true,
+      },
+      update: {},
+    })
+
+    // Seed 10 unguessable codes per item
+    for (let i = 1; i <= 10; i++) {
+      const codeStr = `${c.codePrefix}-${crypto.randomUUID().slice(0, 4).toUpperCase()}-${crypto.randomUUID().slice(0, 4).toUpperCase()}`
+      await prisma.couponCode.upsert({
+        where: { code: codeStr },
+        create: {
+          catalogItemId: item.id,
+          code: codeStr,
+          status: 'AVAILABLE',
+        },
+        update: {},
+      })
+    }
+  }
+
+  console.log('  ✅ Seeded 6 catalog items and 60 coupon codes')
 
   console.log('\n🎉 Seeding complete!')
   console.log('\nDemo accounts (OTP sent to console on login):')

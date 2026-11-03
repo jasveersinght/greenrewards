@@ -15,6 +15,7 @@ import {
   Bus,
   Zap,
   RotateCcw,
+  Gift,
 } from 'lucide-react';
 
 interface AppNavbarProps {
@@ -23,11 +24,12 @@ interface AppNavbarProps {
     email?: string;
     roles: string[];
   };
+  balancePoints?: number;
   balancePaise?: bigint | number;
   unreadCount?: number;
 }
 
-export default function AppNavbar({ user, balancePaise = 0, unreadCount = 0 }: AppNavbarProps) {
+export default function AppNavbar({ user, balancePoints, balancePaise = 0, unreadCount = 0 }: AppNavbarProps) {
   const pathname = usePathname();
 
   const navLinks = [
@@ -38,11 +40,14 @@ export default function AppNavbar({ user, balancePaise = 0, unreadCount = 0 }: A
     { href: '/electricity', label: 'Electricity', icon: Zap },
     { href: '/water', label: 'Water', icon: Droplets },
     { href: '/reuse', label: 'Reuse', icon: RotateCcw },
+    { href: '/rewards', label: 'Rewards', icon: Gift },
     { href: '/wallet', label: 'Wallet', icon: Wallet },
     { href: '/activity', label: 'Activity', icon: Activity },
   ];
 
-  const formattedBalance = `₹${(Number(balancePaise) / 100).toFixed(2)}`;
+  const formattedBalance = balancePoints != null
+    ? `${balancePoints} GP`
+    : `${Number(balancePaise)} GP`;
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 bg-white/95 backdrop-blur-md transition-all">

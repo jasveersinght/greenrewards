@@ -33,7 +33,8 @@ export interface BillPredictionResult {
   efficiencyChallenge: {
     target10PercentKwh: number;
     potentialSavingsRupees: number;
-    greenRewardBonusRupees: number;
+    greenRewardBonusPoints: number;
+    greenRewardBonusRupees?: number;
   };
   recommendations: Array<{
     title: string;
@@ -45,6 +46,7 @@ export interface BillPredictionResult {
     mae: number;
     algorithm: string;
     trainingSampleSize: number;
+    label: string;
   };
 }
 
@@ -136,8 +138,8 @@ export function predictHouseholdBill(input: BillPredictionInput): BillPrediction
   }
 
   recommendations.push({
-    title: 'Achieve 10% reduction this cycle to claim ₹200 Eco Reward',
-    impactRupees: 200,
+    title: 'Achieve 10% reduction this bimonthly cycle vs your own baseline to claim 150 Green Points',
+    impactRupees: 150,
     category: 'Green Rewards Challenge',
   });
 
@@ -161,6 +163,7 @@ export function predictHouseholdBill(input: BillPredictionInput): BillPrediction
     efficiencyChallenge: {
       target10PercentKwh,
       potentialSavingsRupees,
+      greenRewardBonusPoints: 150,
       greenRewardBonusRupees: 200,
     },
     recommendations,
@@ -169,6 +172,7 @@ export function predictHouseholdBill(input: BillPredictionInput): BillPrediction
       mae: modelData.metrics.mae || 54.06,
       algorithm: 'Trained Multi-Feature OLS + Random Forest Ensembled on Household Dataset',
       trainingSampleSize: modelData.sample_stats.count || 1000,
+      label: 'Estimate — For insight only; challenge eligibility uses actual utility bills',
     },
   };
 }

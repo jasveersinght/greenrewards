@@ -456,25 +456,110 @@ model TicketSubmission {
 }
 
 // ─────────────────────────────────────────────
-// Wallet, Ledger & Redemptions
+// Wallet, Ledger & Coupons
 // ─────────────────────────────────────────────
 
 model LedgerEntry {
-  id          String    @id @default(cuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
-  campaignId  String?
-  campaign    Campaign? @relation(fields: [campaignId], references: [id])
-  account     String    // STAMPS | PENDING | AVAILABLE | VOUCHER
-  amountPaise Int?
-  stamps      Int?
-  type        String    // EARN_STAMP | USE_STAMP | EARN_PENDING | APPROVE_PENDING | REJECT_PENDING | RESERVE_REDEMPTION | COMPLETE_REDEMPTION | RELEASE_REDEMPTION | REVERSE
-  refType     String
-  refId       String
-  note        String?
-  createdAt   DateTime  @default(now())
+  id            String    @id @default(cuid())
+  transactionId String?
+  entrySide     String?   @default("CREDIT") // DEBIT | CREDIT
+  userId        String?
+  user          User?     @relation(fields: [userId], references: [id])
+  campaignId    String?
+  campaign      Campaign? @relation(fields: [campaignId], references: [id])
+  account       String    // SPONSOR_POOL | USER_PENDING | USER_AVAILABLE | USER_RESERVED | REDEEMED | EXPIRED | REVERSED | STAMPS
+  amountPoints  Int       @default(0)
+  amountPaise   Int?
+  stamps        Int?
+  type          String    // EARN | SETTLE | REDEEM | EXPIRE | REVERSE | REFUND | EARN_STAMP | USE_STAMP
+  refType       String
+  refId         String
+  availableAt   DateTime?
+  settledAt     DateTime?
+  expiresAt     DateTime?
+  prevHash      String?
+  hash          String?
+  reason        String?
+  note          String?
+  createdAt     DateTime  @default(now())
 
-  @@index([userId, createdAt])
+  @@index([transactionId, entrySide])
+  @@index([userId, account])
+  @@index([availableAt])
+  @@index([expiresAt])
+  @@index([createdAt])
+}
+
+model Funder {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // MERCHANT | SPONSOR | BRAND
+  isSimulated Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  catalogItems CouponCatalogItem[]
+}
+
+model CouponCatalogItem {
+  id               String   @id @default(cuid())
+  title            String
+  description      String
+  funderId         String
+  funder           Funder   @relation(fields: [funderId], references: [id])
+  pointsPrice      Int
+  faceValueText    String   // e.g. "₹30 off on ₹300+"
+  minSpendText     String?
+  validMerchantIds String?  // comma-separated partner IDs or "online code"
+  stockTotal       Int
+  stockRemaining   Int
+  perUserLimit     Int      @default(1)
+  validUntil       DateTime
+  kind             String   // PLATFORM_QR | IMPORTED_CODE
+  funderCostPaise  Int      @default(0) // INTERNAL ONLY - never sent to citizen APIs
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  codes       CouponCode[]
+  redemptions Redemption[]
+}
+
+model CouponCode {
+  id                String            @id @default(cuid())
+  catalogItemId     String
+  catalogItem       CouponCatalogItem @relation(fields: [catalogItemId], references: [id])
+  code              String            @unique // Unguessable random token or brand promo code
+  status            String            @default("AVAILABLE") // AVAILABLE | ASSIGNED | USED | EXPIRED | CANCELLED
+  assignedUserId    String?
+  assignedAt        DateTime?
+  expiresAt         DateTime?
+  usedAt            DateTime?
+  usedAtMerchantId  String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  redemption Redemption?
+
+  @@index([catalogItemId, status])
+  @@index([code])
+}
+
+model Redemption {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id])
+  catalogItemId  String
+  catalogItem    CouponCatalogItem @relation(fields: [catalogItemId], references: [id])
+  couponCodeId   String            @unique
+  couponCode     CouponCode        @relation(fields: [couponCodeId], references: [id])
+  pointsSpent    Int
+  status         String            @default("ACTIVE") // ACTIVE | USED | EXPIRED | REFUNDED
+  idempotencyKey String?           @unique
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([userId, status])
 }
 
 model Voucher {
@@ -488,20 +573,6 @@ model Voucher {
   expiresAt         DateTime
   redeemedAt        DateTime?
   createdAt         DateTime  @default(now())
-}
-
-model Redemption {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id])
-  code       String    @unique
-  valuePaise Int
-  status     String    @default("RESERVED") // RESERVED | USED | EXPIRED | CANCELLED
-  expiresAt  DateTime
-  usedAt     DateTime?
-  createdAt  DateTime  @default(now())
-
-  @@index([code])
 }
 
 // ─────────────────────────────────────────────

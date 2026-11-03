@@ -1,5 +1,7 @@
 import { prisma } from '@/server/db';
 import { computeTelemetryEvidenceHash } from '@/server/domain/telemetry';
+import { appendDoubleEntry } from './walletService';
+import { computeAvailableAt, POINTS_CONFIG } from '@/server/domain/pointsConfig';
 
 export interface SubmitRepairClaimInput {
   userId: string;
@@ -180,35 +182,47 @@ export const waterService = {
         },
       });
 
-      const updated = await tx.repairClaim.update({
-        where: { id: claimId },
+      // Atomic conditional update
+      const updateRes = await tx.repairClaim.updateMany({
+        where: { id: claimId, status: 'PENDING' },
         data: {
           status: decision,
           rewardedOnce: decision === 'CONFIRMED',
         },
       });
 
+      if (updateRes.count !== 1) {
+        throw new Error('REPAIR_CLAIM_ALREADY_REVIEWED');
+      }
+
       if (decision === 'CONFIRMED') {
-        // Issue ₹250 (25000 paise) water repair reward
         const campaign = await tx.campaign.findFirst({
           where: { section: 'WATER', status: 'ACTIVE' },
         });
 
-        await tx.ledgerEntry.create({
-          data: {
-            userId: claim.userId,
-            campaignId: campaign?.id,
-            account: 'AVAILABLE',
-            amountPaise: 25000,
-            type: 'EARN_PENDING',
-            refType: 'WATER_REPAIR_CLAIM',
-            refId: claim.id,
-            note: 'Verified home plumbing leak repair reward (₹250 bounty)',
-          },
+        const availableAt = computeAvailableAt();
+        const points = POINTS_CONFIG.EARNING.HOUSEHOLD_WATER_REPAIR_VERIFIED; // 75 GP
+
+        // Issue 75 Green Points (USER_PENDING)
+        await appendDoubleEntry(tx, {
+          debitAccount: 'SPONSOR_POOL',
+          creditAccount: 'USER_PENDING',
+          amountPoints: points,
+          userId: claim.userId,
+          campaignId: campaign?.id,
+          type: 'EARN',
+          refType: 'WATER_REPAIR_CLAIM',
+          refId: claim.id,
+          availableAt,
+          note: `Verified home plumbing leak repair reward (${points} GP)`,
         });
       }
 
-      return updated;
+      return {
+        ...claim,
+        status: decision,
+        rewardedOnce: decision === 'CONFIRMED',
+      };
     });
   },
 

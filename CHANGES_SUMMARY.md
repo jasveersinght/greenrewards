@@ -64,6 +64,12 @@
 - Seeded 6 coupon catalog items (prices 100–300 GP) with 60 unguessable coupon codes.
 - Granted `500 GP` available Green Points to demo citizen (`user@demo`) for immediate redemption testing.
 
+### Step 7: LAN & Mobile Styling Fixes
+- Restored `@tailwindcss/turbopack` CSS loader in `next.config.ts`, fixing broken/missing Tailwind CSS utilities and generating the complete 105KB stylesheet.
+- Added `allowedDevOrigins` in `next.config.ts` allowing `192.168.1.11` and `localhost` so Next.js 16 HMR does not block cross-origin requests.
+- Relaxed auth email validation to support `@demo` handles and alias `@demo.com` seamlessly to seeded accounts.
+- Added 1-Click Quick Demo Sign-In and dev auto-fill OTP buttons on `/login`.
+
 ---
 
 ## 3. Files Touched

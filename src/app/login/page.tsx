@@ -592,18 +592,19 @@ function LoginForm() {
               </div>
 
               {/* Dev OTP Banner */}
-              {isDev && devOtp && (
+              {isDev && (
                 <div className="p-3.5 bg-emerald-50 border border-emerald-200/90 rounded-2xl flex items-center justify-between gap-3 shadow-2xs" role="status" aria-label="Development OTP">
                   <div>
-                    <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider block">🛠️ Dev Code:</span>
-                    <strong id="dev-otp-value" className="text-xl font-mono text-emerald-800 tracking-widest block font-bold">{devOtp}</strong>
+                    <span className="text-[11px] font-bold text-emerald-900 uppercase tracking-wider block">🛠️ Dev Code (or type 123456):</span>
+                    <strong id="dev-otp-value" className="text-xl font-mono text-emerald-800 tracking-widest block font-bold">{devOtp || '123456'}</strong>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      const digits = devOtp.split('')
+                      const codeToFill = devOtp || '123456'
+                      const digits = codeToFill.split('')
                       setOtp(digits)
-                      handleVerify(devOtp)
+                      handleVerify(codeToFill)
                     }}
                     className="px-3.5 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
                   >

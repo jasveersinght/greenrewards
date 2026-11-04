@@ -4,7 +4,7 @@
  */
 import { prisma } from '@/server/db'
 import { generateOtp, hashOtp, verifyOtp, otpExpiryDate, canResend, isLockedOut } from '@/server/domain/auth'
-import type { User } from '@/generated/prisma'
+import type { User } from '@/generated/prisma/client'
 
 // Dev-only: store last OTP per email for the banner
 const devOtpStore: Map<string, string> = new Map()

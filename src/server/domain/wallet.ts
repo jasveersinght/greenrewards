@@ -2,7 +2,7 @@
  * Wallet / Ledger domain logic — pure helpers.
  * NEVER update balances in-place; balances are DERIVED from ledger entries.
  */
-import type { LedgerEntry } from '@/generated/prisma';
+import type { LedgerEntry } from '@/generated/prisma/client';
 
 export interface WalletBalance {
   stamps: number;

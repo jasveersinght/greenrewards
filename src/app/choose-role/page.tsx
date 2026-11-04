@@ -91,7 +91,7 @@ export default function ChooseRolePage() {
         setSubmitting(null)
         return
       }
-      router.push(data.redirectUrl || '/home')
+      window.location.href = data.redirectUrl || '/home'
     } catch {
       setError('Connection error. Please try again.')
       setSubmitting(null)

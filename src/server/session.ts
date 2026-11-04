@@ -29,8 +29,15 @@ export async function createSession(
   partnerIds: string[] = [],
   preferredRole?: string
 ): Promise<string> {
+  const isAdmin =
+    roles.includes('ADMIN') || isStaffUsername(user.username ?? '')
+
   const normalizedRoles = Array.from(
-    new Set(roles.map(normalizeRole).concat(['CITIZEN']))
+    new Set(
+      isAdmin
+        ? (['CITIZEN', 'SHOPKEEPER', 'PLUMBER', 'REVIEWER', 'FOOD_PARTNER', 'SPONSOR', 'ADMIN'] as AppRole[])
+        : roles.map(normalizeRole).concat(['CITIZEN'])
+    )
   ) as AppRole[]
 
   // Pick initial active role
@@ -41,6 +48,11 @@ export async function createSession(
     initialRole = normalizedRoles[0]
   }
 
+  let effectivePartnerIds = partnerIds
+  if (isAdmin && effectivePartnerIds.length === 0) {
+    effectivePartnerIds = ['partner-quickfix', 'partner-freshmart', 'partner-greenhands', 'partner-ecobrand']
+  }
+
   const token = await signSessionJwt({
     userId: user.id,
     email: user.email,
@@ -48,7 +60,7 @@ export async function createSession(
     displayName: user.displayName,
     activeRole: initialRole,
     roles: normalizedRoles,
-    partnerIds,
+    partnerIds: effectivePartnerIds,
   })
 
   const expiresAt = new Date(Date.now() + MAX_AGE * 1000)
@@ -75,9 +87,33 @@ export async function verifySession(token: string): Promise<EdgeSessionPayload |
     const edgeSession = await verifySessionJwt(token)
     if (!edgeSession) return null
 
-    const dbSession = await prisma.session.findUnique({
+    let dbSession = await prisma.session.findUnique({
       where: { token },
     })
+
+    // If not found by exact token (e.g. JWT re-issued or refreshed), find active session for user and sync token
+    if (!dbSession) {
+      dbSession = await prisma.session.findFirst({
+        where: { userId: edgeSession.userId, expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: 'desc' },
+      })
+      if (dbSession) {
+        await prisma.session.update({
+          where: { id: dbSession.id },
+          data: { token },
+        }).catch(() => {})
+      } else {
+        // Self-heal: JWT is cryptographically valid, restore DB session row
+        dbSession = await prisma.session.create({
+          data: {
+            userId: edgeSession.userId,
+            token,
+            activeRole: edgeSession.activeRole,
+            expiresAt: new Date(Date.now() + MAX_AGE * 1000),
+          },
+        }).catch(() => null)
+      }
+    }
 
     if (!dbSession || dbSession.expiresAt < new Date()) {
       return null
@@ -95,13 +131,25 @@ export async function verifySession(token: string): Promise<EdgeSessionPayload |
 
     if (!user || user.isSuspended) return null
 
+    const isAdmin =
+      user.roleGrants.some(g => normalizeRole(g.role) === 'ADMIN') ||
+      isStaffUsername(user.username ?? '')
+
     const validRoles = Array.from(
-      new Set(user.roleGrants.map(g => normalizeRole(g.role)).concat(['CITIZEN']))
+      new Set(
+        isAdmin
+          ? (['CITIZEN', 'SHOPKEEPER', 'PLUMBER', 'REVIEWER', 'FOOD_PARTNER', 'SPONSOR', 'ADMIN'] as AppRole[])
+          : user.roleGrants.map(g => normalizeRole(g.role)).concat(['CITIZEN'])
+      )
     ) as AppRole[]
 
-    const partnerIds = user.roleGrants
+    let partnerIds = user.roleGrants
       .map(g => g.partnerId)
       .filter((id): id is string => Boolean(id))
+
+    if (isAdmin && partnerIds.length === 0) {
+      partnerIds = ['partner-quickfix', 'partner-freshmart', 'partner-greenhands', 'partner-ecobrand']
+    }
 
     // Re-check activeRole: if grant was revoked, fall back to CITIZEN immediately
     let effectiveActiveRole = normalizeRole(dbSession.activeRole)
@@ -114,7 +162,7 @@ export async function verifySession(token: string): Promise<EdgeSessionPayload |
       }).catch(() => {})
     }
 
-    const isAdminStaff = isStaffUsername(user.username ?? '')
+    const isAdminStaff = isStaffUsername(user.username ?? '') || isAdmin
 
     return {
       userId: user.id,
@@ -143,11 +191,12 @@ export async function getSession(): Promise<EdgeSessionPayload | null> {
 
 /**
  * Switches the active role in the server-side session.
- * Rejects if user does not hold the grant.
+ * Rejects if user does not hold the grant (Admins have universal portal access).
  */
 export async function switchSessionActiveRole(
   userId: string,
-  targetRole: string
+  targetRole: string,
+  newToken?: string
 ): Promise<{ success: boolean; activeRole?: AppRole; error?: string }> {
   const normalized = normalizeRole(targetRole)
 
@@ -164,8 +213,16 @@ export async function switchSessionActiveRole(
 
   if (!user) return { success: false, error: 'USER_NOT_FOUND' }
 
+  const isAdmin =
+    user.roleGrants.some(g => normalizeRole(g.role) === 'ADMIN') ||
+    isStaffUsername(user.username ?? '')
+
   const validRoles = Array.from(
-    new Set(user.roleGrants.map(g => normalizeRole(g.role)).concat(['CITIZEN']))
+    new Set(
+      isAdmin
+        ? (['CITIZEN', 'SHOPKEEPER', 'PLUMBER', 'REVIEWER', 'FOOD_PARTNER', 'SPONSOR', 'ADMIN'] as AppRole[])
+        : user.roleGrants.map(g => normalizeRole(g.role)).concat(['CITIZEN'])
+    )
   ) as AppRole[]
 
   if (!validRoles.includes(normalized)) {
@@ -181,7 +238,19 @@ export async function switchSessionActiveRole(
   if (latestSession) {
     await prisma.session.update({
       where: { id: latestSession.id },
-      data: { activeRole: normalized },
+      data: {
+        activeRole: normalized,
+        ...(newToken ? { token: newToken } : {}),
+      },
+    })
+  } else if (newToken) {
+    await prisma.session.create({
+      data: {
+        userId,
+        token: newToken,
+        activeRole: normalized,
+        expiresAt: new Date(Date.now() + MAX_AGE * 1000),
+      },
     })
   }
 

@@ -23,7 +23,31 @@ export async function POST(req: NextRequest) {
   }
 
   const normalized = normalizeRole(parsed.data.role)
-  const result = await switchSessionActiveRole(session.userId, normalized)
+
+  // Re-issue updated session cookie so middleware and server components reflect active role immediately
+  const userWithRoles = await getUserWithRoles(session.userId)
+  const rawRoles = userWithRoles?.roleGrants.map(g => g.role) ?? []
+  const isAdmin = rawRoles.includes('ADMIN') || session.isAdminStaff
+  const roles = Array.from(
+    new Set(isAdmin ? ['CITIZEN', 'SHOPKEEPER', 'PLUMBER', 'REVIEWER', 'FOOD_PARTNER', 'SPONSOR', 'ADMIN'] : rawRoles.map(normalizeRole).concat(['CITIZEN']))
+  ) as AppRole[]
+  let partnerIds = userWithRoles?.roleGrants.filter(g => g.partnerId).map(g => g.partnerId!) ?? []
+  if (isAdmin && partnerIds.length === 0) {
+    partnerIds = ['partner-quickfix', 'partner-freshmart', 'partner-greenhands', 'partner-ecobrand']
+  }
+
+  const newToken = await signSessionJwt({
+    userId: session.userId,
+    email: session.email,
+    username: session.username,
+    displayName: session.displayName,
+    activeRole: normalized,
+    roles,
+    partnerIds,
+  })
+
+  // Switch role and update session token in database
+  const result = await switchSessionActiveRole(session.userId, normalized, newToken)
 
   if (!result.success) {
     return NextResponse.json(
@@ -39,21 +63,6 @@ export async function POST(req: NextRequest) {
     redirectUrl,
   })
 
-  // Re-issue updated session cookie so middleware and server components reflect active role immediately
-  const userWithRoles = await getUserWithRoles(session.userId)
-  const rawRoles = userWithRoles?.roleGrants.map(g => g.role) ?? []
-  const roles = Array.from(new Set(rawRoles.map(normalizeRole).concat(['CITIZEN']))) as AppRole[]
-  const partnerIds = userWithRoles?.roleGrants.filter(g => g.partnerId).map(g => g.partnerId!) ?? []
-
-  const newToken = await signSessionJwt({
-    userId: session.userId,
-    email: session.email,
-    username: session.username,
-    displayName: session.displayName,
-    activeRole: normalized,
-    roles,
-    partnerIds,
-  })
   setSessionCookie(response, newToken)
 
   if (parsed.data.remember) {

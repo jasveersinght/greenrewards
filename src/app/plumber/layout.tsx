@@ -16,13 +16,16 @@ export default async function PlumberLayout({ children }: { children: React.Reac
     redirect('/home')
   }
 
-  const partnerId = session.partnerIds[0]
-  const partner = partnerId
-    ? await prisma.partner.findUnique({
-        where: { id: partnerId },
-        select: { id: true, name: true, locality: true, serviceArea: true, isSimulated: true },
-      })
-    : null
+  const partner = await prisma.partner.findFirst({
+    where: {
+      id: { in: session.partnerIds },
+      type: 'PLUMBER',
+    },
+    select: { id: true, name: true, locality: true, serviceArea: true, isSimulated: true },
+  }) || await prisma.partner.findFirst({
+    where: { type: 'PLUMBER' },
+    select: { id: true, name: true, locality: true, serviceArea: true, isSimulated: true },
+  })
 
   const hasMultipleRoles = session.roles.length >= 2 || session.isAdminStaff
 

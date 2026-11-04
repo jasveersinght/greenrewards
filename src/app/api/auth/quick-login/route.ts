@@ -59,16 +59,20 @@ export async function POST(req: NextRequest) {
 
   const userWithRoles = await getUserWithRoles(user.id)
   const rawRoles = userWithRoles?.roleGrants.map(g => g.role) ?? []
+  const isAdminStaff = isStaffUsername(user.username ?? '')
+  const isAdmin = rawRoles.includes('ADMIN') || isAdminStaff
   const roles = Array.from(
-    new Set(rawRoles.map(normalizeRole).concat(['CITIZEN']))
+    new Set(isAdmin ? ['ADMIN', 'REVIEWER', 'SHOPKEEPER', 'PLUMBER', 'FOOD_PARTNER', 'SPONSOR', 'CITIZEN'] : rawRoles.map(normalizeRole).concat(['CITIZEN']))
   ) as AppRole[]
 
-  const partnerIds = userWithRoles?.roleGrants
+  let partnerIds = userWithRoles?.roleGrants
     .filter(g => g.partnerId)
     .map(g => g.partnerId!) ?? []
+  if (isAdmin && partnerIds.length === 0) {
+    partnerIds = ['partner-quickfix', 'partner-freshmart', 'partner-greenhands', 'partner-ecobrand']
+  }
 
   const requestedRole = parsed.data.role ? normalizeRole(parsed.data.role) : undefined
-  const isAdminStaff = isStaffUsername(user.username ?? '')
 
   // If user has 2+ roles or is staff and didn't explicitly pick a role from quick login button, route to /choose-role
   const redirectUrl = requestedRole && roles.includes(requestedRole)

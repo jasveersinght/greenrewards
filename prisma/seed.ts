@@ -269,10 +269,14 @@ async function main() {
   const sponsorDemo = await createUser('sponsor@demo', 'EcoBrand Manager', 'Chennai', 'Kattankulathur', 'ecobrand.manager')
   await grantRole(sponsorDemo.id, 'SPONSOR', ecoBrand.id, 'seed')
 
-  // admin@demo (username admin.demo, Citizen + Reviewer + Admin -> sees picker with 3 options)
+  // admin@demo (username admin.demo, Citizen + Reviewer + Admin + operator access)
   const adminDemo = await createUser('admin@demo', 'Admin User', 'Chennai', 'Kattankulathur', 'admin.demo')
   await grantRole(adminDemo.id, 'ADMIN', undefined, 'seed')
   await grantRole(adminDemo.id, 'REVIEWER', undefined, 'seed')
+  await grantRole(adminDemo.id, 'PLUMBER', quickFix.id, 'seed')
+  await grantRole(adminDemo.id, 'SHOPKEEPER', freshMart.id, 'seed')
+  await grantRole(adminDemo.id, 'FOOD_PARTNER', greenHands.id, 'seed')
+  await grantRole(adminDemo.id, 'SPONSOR', ecoBrand.id, 'seed')
 
   // Backward compatibility alias accounts
   const merchantDemo = await createUser('merchant@demo', 'Ravi Merchant', 'Chennai', 'Potheri')

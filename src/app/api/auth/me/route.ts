@@ -22,10 +22,21 @@ export async function GET() {
     },
   })
 
+  const isAdmin = session.roles.includes('ADMIN') || session.isAdminStaff
+  const allRoles: Array<'CITIZEN' | 'SHOPKEEPER' | 'PLUMBER' | 'REVIEWER' | 'FOOD_PARTNER' | 'SPONSOR' | 'ADMIN'> = [
+    'ADMIN',
+    'REVIEWER',
+    'SHOPKEEPER',
+    'PLUMBER',
+    'FOOD_PARTNER',
+    'SPONSOR',
+    'CITIZEN',
+  ]
+
   return NextResponse.json({
     user,
     activeRole: session.activeRole,
-    roles: session.roles,
+    roles: isAdmin ? allRoles : session.roles,
     partnerIds: session.partnerIds,
     isAdminStaff: session.isAdminStaff,
   })

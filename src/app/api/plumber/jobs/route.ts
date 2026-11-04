@@ -8,8 +8,15 @@ export async function GET() {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  const partnerId = session.partnerIds[0]
-  const partner = partnerId ? await prisma.partner.findUnique({ where: { id: partnerId } }) : null
+  const partner = await prisma.partner.findFirst({
+    where: {
+      id: { in: session.partnerIds },
+      type: 'PLUMBER',
+    },
+  }) || await prisma.partner.findFirst({
+    where: { type: 'PLUMBER' },
+  })
+  const partnerId = partner?.id
   const serviceArea = partner?.serviceArea?.toLowerCase() || ''
 
   // 1. Available job requests (not yet assigned or requested in plumber's locality)

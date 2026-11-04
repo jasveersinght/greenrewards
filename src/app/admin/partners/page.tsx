@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import Link from 'next/link'
 import {
   Store,
   Wrench,
@@ -11,6 +12,7 @@ import {
   AlertCircle,
   ToggleLeft,
   ToggleRight,
+  ExternalLink,
 } from 'lucide-react'
 
 interface Partner {
@@ -173,7 +175,45 @@ export default function AdminPartnersPage() {
                       </button>
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <span className="text-emerald-700 font-bold">✓ Approved</span>
+                      <div className="flex items-center justify-end gap-2.5">
+                        <span className="text-emerald-700 font-bold hidden sm:inline">✓ Approved</span>
+                        {p.type === 'PLUMBER' && (
+                          <Link
+                            href="/plumber"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-cyan-50 text-cyan-800 hover:bg-cyan-100 rounded-lg text-[11px] font-semibold border border-cyan-200 transition-colors"
+                          >
+                            <span>Open Portal</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        )}
+                        {p.type === 'SHOP' && (
+                          <Link
+                            href="/merchant"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-800 hover:bg-amber-100 rounded-lg text-[11px] font-semibold border border-amber-200 transition-colors"
+                          >
+                            <span>Open Portal</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        )}
+                        {p.type === 'FOOD_PARTNER' && (
+                          <Link
+                            href="/partner"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-800 hover:bg-orange-100 rounded-lg text-[11px] font-semibold border border-orange-200 transition-colors"
+                          >
+                            <span>Open Hub</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        )}
+                        {p.type === 'SPONSOR' && (
+                          <Link
+                            href="/sponsor"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-800 hover:bg-purple-100 rounded-lg text-[11px] font-semibold border border-purple-200 transition-colors"
+                          >
+                            <span>Open Portal</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )

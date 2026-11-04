@@ -12,6 +12,10 @@ import {
   Users,
   ClipboardList,
   RefreshCw,
+  Wrench,
+  ClipboardCheck,
+  HeartHandshake,
+  User,
 } from 'lucide-react'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -97,6 +101,50 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 )
               })}
             </ul>
+
+            <div className="pt-6 mt-6 border-t border-slate-100">
+              <span className="px-3.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                Operator Portals
+              </span>
+              <ul className="space-y-1">
+                <li>
+                  <Link
+                    href="/plumber"
+                    className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-cyan-50 hover:text-cyan-800 transition-colors"
+                  >
+                    <Wrench className="w-3.5 h-3.5 text-cyan-600" />
+                    <span>Plumber Portal</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/merchant"
+                    className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-amber-50 hover:text-amber-800 transition-colors"
+                  >
+                    <Store className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Shopkeeper Portal</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/reviewer"
+                    className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-800 transition-colors"
+                  >
+                    <ClipboardCheck className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Reviewer Queue</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/partner"
+                    className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl text-xs font-medium text-slate-600 hover:bg-orange-50 hover:text-orange-800 transition-colors"
+                  >
+                    <HeartHandshake className="w-3.5 h-3.5 text-orange-600" />
+                    <span>Food Partner Hub</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
           </nav>
         </aside>
 

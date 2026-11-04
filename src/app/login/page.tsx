@@ -65,7 +65,7 @@ function LoginForm() {
         setError(data.error || 'Quick login failed')
         return
       }
-      router.push(data.redirectUrl || '/home')
+      window.location.href = data.redirectUrl || '/home'
     } catch {
       setError('Connection error. Please try again.')
     } finally {
@@ -188,11 +188,11 @@ function LoginForm() {
 
       // If user profile is already set, route to choose-role or role portal
       if (data.needsOnboarding) {
-        router.push('/onboarding')
+        window.location.href = '/onboarding'
       } else if (data.needsChooseRole) {
-        router.push(data.redirectUrl || '/choose-role')
+        window.location.href = data.redirectUrl || '/choose-role'
       } else {
-        router.push(data.redirectUrl || '/home')
+        window.location.href = data.redirectUrl || '/home'
       }
     } finally {
       setLoading(false)

@@ -58,6 +58,27 @@ All architectural choices and resolutions for ambiguous specifications are recor
 
 - **Citizen Role Applications (`/apply`):** Citizens can apply for `SHOPKEEPER`, `PLUMBER`, `FOOD_PARTNER`, or `SPONSOR`. Applications are reviewed and approved/rejected with reason at `/admin/applications`. Approving an application automatically creates the `Partner` record, links it, and grants the role. `ADMIN` and `REVIEWER` roles cannot be applied for and are grantable by administrators only.
 - **Dedicated Portals for Every Role:**
+  * `CITIZEN` -> `/home`
+  * `SHOPKEEPER` -> `/merchant` (Counter Terminal at `/merchant/scan`)
+  * `PLUMBER` -> `/plumber`
+  * `REVIEWER` -> `/reviewer`
+  * `FOOD_PARTNER` -> `/partner`
+  * `SPONSOR` -> `/sponsor`
+  * `ADMIN` -> `/admin`
+
+### 10. Plumber Portal Access & Admin Role Switching Fix
+- **Problem:** When opening the Plumber portal from Admin or clicking Plumber on `/choose-role`, users experienced unexpected redirects to `/login`.
+- **Root Causes:**
+  1. *Token Mismatch on Role Switch:* When switching roles via `POST /api/auth/choose-role`, a re-issued JWT was saved to the cookie, but the existing database `Session` row still contained the old token string. Subsequent server layout calls (`getSession()`) looking up `token` failed to find a match and triggered `if (!session) redirect('/login')`.
+  2. *Admin Multi-Role Privileges:* Superuser `admin@demo` accounts previously only held explicit DB grants for `['ADMIN', 'REVIEWER', 'CITIZEN']`. Switching to `PLUMBER` or visiting `/plumber` failed authorization checks.
+  3. *Client-side Soft Navigation:* `router.push('/plumber')` sometimes performed RSC fetches before the new cookie was registered in the browser, causing stale unauthenticated responses.
+  4. *Partner Profile Mismatch:* `session.partnerIds[0]` assumed the first linked partner was always the active role's partner, which mismatched when a user or administrator held multiple partner grants.
+- **Fixes Applied:**
+  1. *Database Self-Healing Sessions (`src/server/session.ts`):* If `verifySession` receives a cryptographically valid JWT whose DB row was replaced or touched, it automatically re-syncs the token or restores the DB session row so users are never ejected to `/login`.
+  2. *Universal Portal Privileges for Admins:* Users with the `ADMIN` role grant or staff usernames are granted access across all 7 portals (`/plumber`, `/merchant`, `/reviewer`, `/partner`, `/sponsor`, `/admin`, `/home`).
+  3. *Type-Specific Partner Matching:* Plumber layout and endpoints look up partners with `type: 'PLUMBER'` matching the user's granted partner IDs, falling back to the default certified plumbing partner for admins.
+  4. *Reliable Full Navigations:* Updated `choose-role` and login redirects to use `window.location.href`, guaranteeing cookie attachment on initial document fetch.
+  5. *Direct Portal Navigation in Admin Dashboard:* Added an "Operator Portals" section to `src/app/admin/layout.tsx` (sidebar) and `src/app/admin/page.tsx` (dashboard quick access) allowing admins to directly access the Plumber Portal, Shopkeeper Terminal, Reviewer Queue, and Food Partner Hub with one click.
   - Citizen (`/home`)
   - Shopkeeper (`/merchant`): Scan customer reuse stamps, verify claims, redeem coupons
   - Plumber (`/plumber`): View available plumbing jobs, manage active repair stages (`REQUESTED` -> `ACCEPTED` -> `VISITED` -> `REPAIRED` -> `VERIFIED`), view citizen address, log before/after photos and meter readings

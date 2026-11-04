@@ -1,6 +1,8 @@
-// Prisma 7 config — datasource URL is read from .env.local via env()
-import "dotenv/config";
-import { defineConfig, env } from "prisma/config";
+// Prisma 7 config
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
+dotenv.config();
+import { defineConfig } from "prisma/config";
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -8,6 +10,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: env("DATABASE_URL"),
+    url: process.env.DATABASE_URL || "file:./dev.db",
   },
 });
